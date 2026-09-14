@@ -21,6 +21,7 @@ describe('createCsvStores', () => {
       id: 'u1',
       name: 'Ada',
       photoUrl: '',
+      bio: '',
       createdAt: '2026-01-01',
     });
     await stores.tiles.append({
@@ -33,7 +34,13 @@ describe('createCsvStores', () => {
     await stores.tileText.append({ tileId: 't1', text: 'hello' });
 
     await expect(stores.users.readAll()).resolves.toEqual([
-      { id: 'u1', name: 'Ada', photoUrl: '', createdAt: '2026-01-01' },
+      {
+        id: 'u1',
+        name: 'Ada',
+        photoUrl: '',
+        bio: '',
+        createdAt: '2026-01-01',
+      },
     ]);
     await expect(stores.tiles.readAll()).resolves.toEqual([
       {

@@ -16,6 +16,7 @@ A minimal, mobile-first social media app. Users log in, build a small profile, a
 - Have a profile with:
   - Name
   - Photo
+  - Bio (short, editable text)
   - Follower count
   - Following count
 - Can follow / unfollow other users
@@ -49,7 +50,7 @@ A minimal, mobile-first social media app. Users log in, build a small profile, a
 
 ## Data Model (CSV files, draft)
 
-- `users.csv` — id, name, photoUrl, createdAt
+- `users.csv` — id, name, photoUrl, bio, createdAt
 - `follows.csv` — followerId, followeeId, createdAt
 - `tiles.csv` — id, userId, type (`text` | `item`), createdAt, archived (bool)
 - `tile_text.csv` — tileId, text

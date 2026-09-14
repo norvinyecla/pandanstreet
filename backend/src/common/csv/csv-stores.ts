@@ -12,6 +12,7 @@ const userColumns: CsvColumn<UserRecord>[] = [
   { name: 'id', type: 'string' },
   { name: 'name', type: 'string' },
   { name: 'photoUrl', type: 'string' },
+  { name: 'bio', type: 'string' },
   { name: 'createdAt', type: 'string' },
 ];
 

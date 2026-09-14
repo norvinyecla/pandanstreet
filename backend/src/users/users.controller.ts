@@ -3,10 +3,12 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   BadRequestException,
+  Body,
   Controller,
   ForbiddenException,
   Get,
   Param,
+  Patch,
   Post,
   UploadedFile,
   UseGuards,
@@ -17,6 +19,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { CurrentUserId } from '../common/auth/current-user-id.decorator.js';
 import { SessionAuthGuard } from '../common/auth/session-auth.guard.js';
+import { UpdateBioDto } from './dto/update-bio.dto.js';
 import type { UserProfileDto } from './dto/user-profile.dto.js';
 import { UsersService } from './users.service.js';
 import { resolveUploadLimits } from './upload.config.js';
@@ -39,6 +42,20 @@ export class UsersController {
 
   @Get(':id')
   getProfile(@Param('id') id: string): Promise<UserProfileDto> {
+    return this.usersService.getProfile(id);
+  }
+
+  @UseGuards(SessionAuthGuard)
+  @Patch(':id/bio')
+  async updateBio(
+    @Param('id') id: string,
+    @CurrentUserId() currentUserId: string,
+    @Body() dto: UpdateBioDto,
+  ): Promise<UserProfileDto> {
+    if (currentUserId !== id) {
+      throw new ForbiddenException("Cannot edit another user's bio");
+    }
+    await this.usersService.setBio(id, dto.bio);
     return this.usersService.getProfile(id);
   }
 

@@ -155,4 +155,46 @@ describe('Users & Auth (e2e)', () => {
 
     expect(res.body.photoUrl).toMatch(/^\/uploads\/.+\.png$/);
   });
+
+  it('rejects a bio update without a session', async () => {
+    await request(app.getHttpServer())
+      .patch('/users/some-id/bio')
+      .send({ bio: 'hello' })
+      .expect(401);
+  });
+
+  it('rejects updating a bio for a different user while logged in', async () => {
+    const agent = request.agent(app.getHttpServer());
+    await agent.post('/auth/login').send({ name: 'Noether' });
+    const other = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ name: 'Hilbert' });
+
+    await agent
+      .patch(`/users/${other.body.id}/bio`)
+      .send({ bio: 'hello' })
+      .expect(403);
+  });
+
+  it('rejects a bio longer than 140 characters', async () => {
+    const agent = request.agent(app.getHttpServer());
+    const me = await agent.post('/auth/login').send({ name: 'Euler' });
+
+    await agent
+      .patch(`/users/${me.body.id}/bio`)
+      .send({ bio: 'x'.repeat(141) })
+      .expect(400);
+  });
+
+  it('updates and returns the profile bio', async () => {
+    const agent = request.agent(app.getHttpServer());
+    const me = await agent.post('/auth/login').send({ name: 'Noether2' });
+
+    const res = await agent
+      .patch(`/users/${me.body.id}/bio`)
+      .send({ bio: 'Mathematician.' })
+      .expect(200);
+
+    expect(res.body.bio).toBe('Mathematician.');
+  });
 });
