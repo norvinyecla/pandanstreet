@@ -1,0 +1,112 @@
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { AuthProvider } from '../auth/AuthContext.tsx';
+import { TileEditPage } from './TileEditPage.tsx';
+
+const me = {
+  id: 'u1',
+  name: 'Ada',
+  photoUrl: '',
+  bio: '',
+  followerCount: 0,
+  followingCount: 0,
+};
+
+function jsonResponse(body: unknown, status = 200) {
+  return Promise.resolve(new Response(JSON.stringify(body), { status }));
+}
+
+function mockFetch(
+  handlers: Record<string, (init?: RequestInit) => Promise<Response>>,
+) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string, init?: RequestInit) => {
+      const method = init?.method ?? 'GET';
+      const path = new URL(url).pathname;
+      const handler = handlers[`${method} ${path}`] ?? handlers[path];
+      if (!handler) {
+        return Promise.reject(new Error(`Unexpected fetch to ${method} ${url}`));
+      }
+      return handler(init);
+    }),
+  );
+}
+
+function renderEditPage(initialEntry: {
+  pathname: string;
+  state?: unknown;
+}) {
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <AuthProvider>
+        <Routes>
+          <Route path="/tiles/:id/edit" element={<TileEditPage />} />
+          <Route path="/" element={<p>Home</p>} />
+        </Routes>
+      </AuthProvider>
+    </MemoryRouter>,
+  );
+}
+
+describe('TileEditPage', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('pre-fills text from router state, saves, and navigates home', async () => {
+    const patched: unknown[] = [];
+    mockFetch({
+      '/auth/me': () => jsonResponse(me),
+      'PATCH /tiles/t1': (init) => {
+        patched.push(init?.body);
+        return jsonResponse({
+          id: 't1',
+          userId: 'u1',
+          type: 'text',
+          createdAt: '2026-01-01',
+          text: 'Updated text',
+        });
+      },
+    });
+
+    const user = userEvent.setup();
+    renderEditPage({
+      pathname: '/tiles/t1/edit',
+      state: { text: 'Original text' },
+    });
+
+    const field = await screen.findByLabelText(/text/i);
+    await waitFor(() => expect(field).toHaveValue('Original text'));
+
+    await user.clear(field);
+    await user.type(field, 'Updated text');
+    await user.click(screen.getByRole('button', { name: /save/i }));
+
+    expect(await screen.findByText('Home')).toBeInTheDocument();
+    expect(patched).toEqual([JSON.stringify({ text: 'Updated text' })]);
+  });
+
+  it('fetches the tile by id when no router state is available', async () => {
+    mockFetch({
+      '/auth/me': () => jsonResponse(me),
+      '/tiles/u1': () =>
+        jsonResponse([
+          {
+            id: 't1',
+            userId: 'u1',
+            type: 'text',
+            createdAt: '2026-01-01',
+            text: 'From the server',
+          },
+        ]),
+    });
+
+    renderEditPage({ pathname: '/tiles/t1/edit' });
+
+    const field = await screen.findByLabelText(/text/i);
+    await waitFor(() => expect(field).toHaveValue('From the server'));
+  });
+});

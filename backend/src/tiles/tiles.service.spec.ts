@@ -79,13 +79,13 @@ describe('TilesService', () => {
     const active = await service.getActiveTiles(alice.id);
     expect(active).toHaveLength(3);
     expect(active.map((t) => (t as { text: string }).text)).toEqual([
-      'second',
-      'third',
       'fourth',
+      'third',
+      'second',
     ]);
   });
 
-  it('getActiveTiles returns tiles ordered by creation, excluding archived', async () => {
+  it('getActiveTiles returns tiles most recently created first, excluding archived', async () => {
     const alice = await usersService.create('Alice');
     await service.createText(alice.id, 'first');
     await service.createItem(alice.id, '/uploads/p.jpg', 'caption', 'red');
@@ -93,8 +93,8 @@ describe('TilesService', () => {
     const active = await service.getActiveTiles(alice.id);
 
     expect(active).toHaveLength(2);
-    expect(active[0]).toMatchObject({ type: 'text', text: 'first' });
-    expect(active[1]).toMatchObject({ type: 'item', badgeColor: 'red' });
+    expect(active[0]).toMatchObject({ type: 'item', badgeColor: 'red' });
+    expect(active[1]).toMatchObject({ type: 'text', text: 'first' });
   });
 
   it('getActiveTiles throws NotFoundException for an unknown user', async () => {

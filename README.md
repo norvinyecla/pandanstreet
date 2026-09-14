@@ -23,7 +23,7 @@ A minimal, mobile-first social media app. Users log in, build a small profile, a
 
 ### Tiles
 - Each user has **0 to 3 tiles** at any time
-- Tiles are ordered by creation time
+- Tiles are ordered by creation time, most recently created first
 - When a user creates a new tile while already at 3, the **oldest tile is automatically archived** (removed from the active set)
 - Two tile types:
 

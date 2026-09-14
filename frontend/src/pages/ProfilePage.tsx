@@ -119,7 +119,18 @@ export function ProfilePage() {
         </button>
       )}
       <div className="w-full pt-2">
-        <TileGrid tiles={tiles} />
+        <div className="flex items-center justify-between pb-2">
+          <h2 className="text-sm font-semibold text-gray-900">Tiles</h2>
+          {isOwnProfile && (
+            <Link
+              to="/tiles/new"
+              className="min-h-11 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700"
+            >
+              Add tile
+            </Link>
+          )}
+        </div>
+        <TileGrid tiles={tiles} isOwnProfile={isOwnProfile} />
       </div>
     </div>
   );
