@@ -45,4 +45,10 @@ export class FollowsController {
   listFollowing(@Param('id') id: string): Promise<FollowUserDto[]> {
     return this.followsService.listFollowing(id);
   }
+
+  @UseGuards(SessionAuthGuard)
+  @Get('plaza')
+  getPlaza(@CurrentUserId() currentUserId: string): Promise<FollowUserDto[]> {
+    return this.followsService.getPlaza(currentUserId);
+  }
 }
