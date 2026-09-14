@@ -24,6 +24,7 @@ export class UsersService {
       id: randomUUID(),
       name,
       photoUrl: '',
+      bio: '',
       createdAt: new Date().toISOString(),
     });
   }
@@ -39,6 +40,15 @@ export class UsersService {
     const updated = await this.stores.users.update(
       (user) => user.id === id,
       (user) => ({ ...user, photoUrl }),
+    );
+    if (!updated) throw new NotFoundException('User not found');
+    return updated;
+  }
+
+  async setBio(id: string, bio: string): Promise<UserRecord> {
+    const updated = await this.stores.users.update(
+      (user) => user.id === id,
+      (user) => ({ ...user, bio }),
     );
     if (!updated) throw new NotFoundException('User not found');
     return updated;
@@ -60,6 +70,7 @@ export class UsersService {
       id: user.id,
       name: user.name,
       photoUrl: user.photoUrl,
+      bio: user.bio,
       followerCount,
       followingCount,
     };

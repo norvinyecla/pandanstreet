@@ -62,6 +62,7 @@ describe('UsersService', () => {
       id: alice.id,
       name: 'Alice',
       photoUrl: '',
+      bio: '',
       followerCount: 2,
       followingCount: 1,
     });
@@ -85,6 +86,21 @@ describe('UsersService', () => {
   it('setPhotoUrl throws NotFoundException for an unknown id', async () => {
     await expect(
       service.setPhotoUrl('missing', '/uploads/x.jpg'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('setBio updates the stored bio', async () => {
+    const user = await service.create('Edna');
+    const updated = await service.setBio(user.id, 'Building things.');
+    expect(updated.bio).toBe('Building things.');
+
+    const profile = await service.getProfile(user.id);
+    expect(profile.bio).toBe('Building things.');
+  });
+
+  it('setBio throws NotFoundException for an unknown id', async () => {
+    await expect(
+      service.setBio('missing', 'hello'),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

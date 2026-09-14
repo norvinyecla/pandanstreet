@@ -54,8 +54,8 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
 
 ## Phase 6 — Frontend: Profile
 
-- Profile view: name, photo, follower/following counts, follow/unfollow button (when viewing another user)
-- Profile edit: name + photo upload (file upload input)
+- Profile view: name, photo, bio, follower/following counts, follow/unfollow button (when viewing another user)
+- Profile edit: bio (text, ≤140 chars) + photo upload (file upload input)
 - Tile grid (up to 3 tiles) rendering both Text and Item tile types
 
 ## Phase 7 — Frontend: Tile Creation & Editing

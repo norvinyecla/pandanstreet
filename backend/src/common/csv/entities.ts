@@ -2,6 +2,7 @@ export interface UserRecord extends Record<string, unknown> {
   id: string;
   name: string;
   photoUrl: string;
+  bio: string;
   createdAt: string;
 }
 
