@@ -1,10 +1,47 @@
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './auth/AuthContext.tsx';
+import { RequireAuth } from './auth/RequireAuth.tsx';
+import { AppShell } from './components/AppShell.tsx';
+import { LoginPage } from './pages/LoginPage.tsx';
+import { ProfileEditPage } from './pages/ProfileEditPage.tsx';
+import { ProfilePage } from './pages/ProfilePage.tsx';
+
 function App() {
   return (
-    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col items-center justify-center gap-2 px-4 text-center">
-      <h1 className="text-2xl font-semibold text-gray-900">pandanstreet</h1>
-      <p className="text-sm text-gray-500">Scaffolding in progress.</p>
-    </div>
-  )
+    <BrowserRouter>
+      <AuthProvider>
+        <AppShell>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/"
+              element={
+                <RequireAuth>
+                  <ProfilePage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/profile/edit"
+              element={
+                <RequireAuth>
+                  <ProfileEditPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/users/:id"
+              element={
+                <RequireAuth>
+                  <ProfilePage />
+                </RequireAuth>
+              }
+            />
+          </Routes>
+        </AppShell>
+      </AuthProvider>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
