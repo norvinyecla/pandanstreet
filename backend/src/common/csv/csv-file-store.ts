@@ -77,6 +77,17 @@ export class CsvFileStore<T extends Record<string, unknown>> {
     });
   }
 
+  async remove(predicate: (record: T) => boolean): Promise<boolean> {
+    return this.enqueue(async () => {
+      const rows = await this.readAll();
+      const index = rows.findIndex(predicate);
+      if (index === -1) return false;
+      rows.splice(index, 1);
+      await this.writeAll(rows);
+      return true;
+    });
+  }
+
   private deserialize(row: Record<string, string>): T {
     const result = {} as T;
     for (const column of this.columns) {

@@ -93,6 +93,29 @@ describe('CsvFileStore', () => {
     expect(updated).toBeUndefined();
   });
 
+  it('removes a matching record', async () => {
+    await store.append({ id: '1', label: 'first', count: 1, active: false });
+    await store.append({ id: '2', label: 'second', count: 2, active: false });
+
+    const removed = await store.remove((record) => record.id === '1');
+
+    expect(removed).toBe(true);
+    const rows = await store.readAll();
+    expect(rows).toEqual([
+      { id: '2', label: 'second', count: 2, active: false },
+    ]);
+  });
+
+  it('returns false from remove when no record matches', async () => {
+    await store.append({ id: '1', label: 'first', count: 1, active: false });
+
+    const removed = await store.remove((record) => record.id === 'missing');
+
+    expect(removed).toBe(false);
+    const rows = await store.readAll();
+    expect(rows).toHaveLength(1);
+  });
+
   it('serializes concurrent writes through the per-file queue without losing records', async () => {
     const writes = Array.from({ length: 20 }, (_, i) =>
       store.append({

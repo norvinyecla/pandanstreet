@@ -24,6 +24,7 @@ Monorepo layout:
 
 ## Running the App
 
+- **Node version:** run `nvm use` at the repo root before starting either dev server, to pick up the pinned version from `.nvmrc`. A newer Node (e.g. 23.x) can break `nest start --watch` with an `ERR_REQUIRE_CYCLE_MODULE` error.
 - **Frontend dev server:** `yarn dev` in `/frontend`, runs on `http://localhost:3000`
 - **Backend dev server:** `yarn start:dev` in `/backend`, runs on `http://localhost:3001`
 - Frontend calls the backend API at `http://localhost:3001` in development. CORS must be enabled on the backend for `http://localhost:3000`.
