@@ -10,9 +10,12 @@ import { CSV_STORES } from '../common/csv/csv.module.js';
 import type { CsvStores } from '../common/csv/csv-stores.js';
 import type { TileRecord } from '../common/csv/entities.js';
 import { UsersService } from '../users/users.service.js';
+import type { BulletinItemDto, ShoutoutDto } from './dto/feed.dto.js';
 import type { TileDto } from './dto/tile.dto.js';
 
 const MAX_ACTIVE_TILES = 3;
+const SHOUTOUTS_LIMIT = 20;
+const BULLETIN_BOARD_LIMIT = 21;
 
 @Injectable()
 export class TilesService {
@@ -129,6 +132,89 @@ export class TilesService {
         };
       })
       .filter((dto): dto is TileDto => dto !== undefined);
+  }
+
+  /** Active Text tiles from profiles `userId` follows, most recent first, capped at 20. */
+  async getShoutouts(userId: string): Promise<ShoutoutDto[]> {
+    await this.ensureUserExists(userId);
+    const followeeIds = await this.getFolloweeIds(userId);
+    if (followeeIds.size === 0) return [];
+
+    const [tiles, textRecords, users] = await Promise.all([
+      this.stores.tiles.readAll(),
+      this.stores.tileText.readAll(),
+      this.stores.users.readAll(),
+    ]);
+    const userById = new Map(users.map((user) => [user.id, user]));
+
+    return tiles
+      .filter(
+        (tile) =>
+          tile.type === 'text' &&
+          !tile.archived &&
+          followeeIds.has(tile.userId),
+      )
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, SHOUTOUTS_LIMIT)
+      .map((tile): ShoutoutDto | undefined => {
+        const record = textRecords.find((r) => r.tileId === tile.id);
+        const author = userById.get(tile.userId);
+        if (!record || !author) return undefined;
+        return {
+          id: tile.id,
+          createdAt: tile.createdAt,
+          text: record.text,
+          author: { id: author.id, name: author.name, photoUrl: author.photoUrl },
+        };
+      })
+      .filter((dto): dto is ShoutoutDto => dto !== undefined);
+  }
+
+  /** Active Item tiles from profiles `userId` follows, most recent first, capped at 21. */
+  async getBulletinBoard(userId: string): Promise<BulletinItemDto[]> {
+    await this.ensureUserExists(userId);
+    const followeeIds = await this.getFolloweeIds(userId);
+    if (followeeIds.size === 0) return [];
+
+    const [tiles, itemRecords, users] = await Promise.all([
+      this.stores.tiles.readAll(),
+      this.stores.tileItem.readAll(),
+      this.stores.users.readAll(),
+    ]);
+    const userById = new Map(users.map((user) => [user.id, user]));
+
+    return tiles
+      .filter(
+        (tile) =>
+          tile.type === 'item' &&
+          !tile.archived &&
+          followeeIds.has(tile.userId),
+      )
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, BULLETIN_BOARD_LIMIT)
+      .map((tile): BulletinItemDto | undefined => {
+        const record = itemRecords.find((r) => r.tileId === tile.id);
+        const author = userById.get(tile.userId);
+        if (!record || !author) return undefined;
+        return {
+          id: tile.id,
+          createdAt: tile.createdAt,
+          photoUrl: record.photoUrl,
+          caption: record.caption,
+          badgeColor: record.badgeColor,
+          author: { id: author.id, name: author.name, photoUrl: author.photoUrl },
+        };
+      })
+      .filter((dto): dto is BulletinItemDto => dto !== undefined);
+  }
+
+  private async getFolloweeIds(userId: string): Promise<Set<string>> {
+    const follows = await this.stores.follows.readAll();
+    return new Set(
+      follows
+        .filter((follow) => follow.followerId === userId)
+        .map((follow) => follow.followeeId),
+    );
   }
 
   private async ensureUserExists(userId: string): Promise<void> {

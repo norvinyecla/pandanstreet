@@ -21,6 +21,7 @@ import { SessionAuthGuard } from '../common/auth/session-auth.guard.js';
 import { resolveUploadLimits } from '../users/upload.config.js';
 import { CreateItemTileDto } from './dto/create-item-tile.dto.js';
 import { CreateTextTileDto } from './dto/create-text-tile.dto.js';
+import type { BulletinItemDto, ShoutoutDto } from './dto/feed.dto.js';
 import type { TileDto } from './dto/tile.dto.js';
 import { UpdateTextTileDto } from './dto/update-text-tile.dto.js';
 import { TilesService } from './tiles.service.js';
@@ -39,6 +40,18 @@ export class TilesController {
     this.uploadDir = join(dataDir, 'uploads');
     ({ maxBytes: this.maxBytes, allowedTypes: this.allowedTypes } =
       resolveUploadLimits(config));
+  }
+
+  @UseGuards(SessionAuthGuard)
+  @Get('feed/shoutouts')
+  getShoutouts(@CurrentUserId() userId: string): Promise<ShoutoutDto[]> {
+    return this.tilesService.getShoutouts(userId);
+  }
+
+  @UseGuards(SessionAuthGuard)
+  @Get('feed/bulletin-board')
+  getBulletinBoard(@CurrentUserId() userId: string): Promise<BulletinItemDto[]> {
+    return this.tilesService.getBulletinBoard(userId);
   }
 
   @Get(':userId')

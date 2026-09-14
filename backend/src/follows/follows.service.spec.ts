@@ -7,6 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { createCsvStores, type CsvStores } from '../common/csv/csv-stores.js';
+import { TilesService } from '../tiles/tiles.service.js';
 import { UsersService } from '../users/users.service.js';
 import { FollowsService } from './follows.service.js';
 
@@ -14,12 +15,14 @@ describe('FollowsService', () => {
   let dir: string;
   let stores: CsvStores;
   let usersService: UsersService;
+  let tilesService: TilesService;
   let service: FollowsService;
 
   beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), 'follows-service-'));
     stores = createCsvStores(dir);
     usersService = new UsersService(stores);
+    tilesService = new TilesService(stores, usersService);
     service = new FollowsService(stores, usersService);
   });
 
@@ -116,6 +119,83 @@ describe('FollowsService', () => {
 
   it('listFollowing throws NotFoundException for an unknown user', async () => {
     await expect(service.listFollowing('missing')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('getPlaza returns unfollowed users who posted a Text tile in the last 24h', async () => {
+    const alice = await usersService.create('Alice');
+    const bob = await usersService.create('Bob');
+    const carol = await usersService.create('Carol');
+    await tilesService.createText(bob.id, 'hi');
+    await tilesService.createText(carol.id, 'hey');
+
+    const plaza = await service.getPlaza(alice.id);
+
+    expect(plaza.map((u) => u.id).sort()).toEqual([bob.id, carol.id].sort());
+  });
+
+  it('getPlaza includes green/yellow Item tiles but excludes red-only ones', async () => {
+    const alice = await usersService.create('Alice');
+    const bob = await usersService.create('Bob');
+    const carol = await usersService.create('Carol');
+    const dave = await usersService.create('Dave');
+    await tilesService.createItem(bob.id, '/uploads/p.jpg', 'cap', 'green');
+    await tilesService.createItem(carol.id, '/uploads/p.jpg', 'cap', 'yellow');
+    await tilesService.createItem(dave.id, '/uploads/p.jpg', 'cap', 'red');
+
+    const plaza = await service.getPlaza(alice.id);
+
+    expect(plaza.map((u) => u.id).sort()).toEqual([bob.id, carol.id].sort());
+  });
+
+  it('getPlaza excludes users the current user already follows and the user themselves', async () => {
+    const alice = await usersService.create('Alice');
+    const bob = await usersService.create('Bob');
+    const carol = await usersService.create('Carol');
+    await service.follow(alice.id, bob.id);
+    await tilesService.createText(bob.id, 'hi');
+    await tilesService.createText(carol.id, 'hey');
+    await tilesService.createText(alice.id, 'my own text');
+
+    const plaza = await service.getPlaza(alice.id);
+
+    expect(plaza).toHaveLength(0);
+  });
+
+  it('getPlaza excludes tiles older than 24 hours', async () => {
+    const alice = await usersService.create('Alice');
+    const bob = await usersService.create('Bob');
+    const carol = await usersService.create('Carol');
+    const staleTile = await tilesService.createText(bob.id, 'stale');
+    await tilesService.createText(carol.id, 'fresh');
+    const staleCreatedAt = new Date(
+      Date.now() - 25 * 60 * 60 * 1000,
+    ).toISOString();
+    await stores.tiles.update(
+      (record) => record.id === staleTile.id,
+      (record) => ({ ...record, createdAt: staleCreatedAt }),
+    );
+
+    const plaza = await service.getPlaza(alice.id);
+
+    expect(plaza).toHaveLength(0);
+  });
+
+  it('getPlaza samples at most 3 candidates', async () => {
+    const alice = await usersService.create('Alice');
+    for (let i = 0; i < 5; i++) {
+      const user = await usersService.create(`User${i}`);
+      await tilesService.createText(user.id, 'hi');
+    }
+
+    const plaza = await service.getPlaza(alice.id);
+
+    expect(plaza.length).toBeLessThanOrEqual(3);
+  });
+
+  it('getPlaza throws NotFoundException for an unknown user', async () => {
+    await expect(service.getPlaza('missing')).rejects.toBeInstanceOf(
       NotFoundException,
     );
   });
