@@ -1,7 +1,8 @@
+import { Link } from 'react-router-dom';
 import { resolveAssetUrl } from '../api/client.ts';
 import type { BadgeColor, Tile } from '../api/types.ts';
 
-const BADGE_MESSAGES: Record<BadgeColor, string> = {
+export const BADGE_MESSAGES: Record<BadgeColor, string> = {
   red: 'Hello!',
   yellow: 'How are you?',
   green: "G'day!",
@@ -13,7 +14,7 @@ const BADGE_STYLES: Record<BadgeColor, string> = {
   green: 'bg-green-100 text-green-800',
 };
 
-function BadgeLozenge({ color }: { color: BadgeColor }) {
+export function BadgeLozenge({ color }: { color: BadgeColor }) {
   return (
     <span
       className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${BADGE_STYLES[color]}`}
@@ -23,7 +24,13 @@ function BadgeLozenge({ color }: { color: BadgeColor }) {
   );
 }
 
-export function TileGrid({ tiles }: { tiles: Tile[] }) {
+export function TileGrid({
+  tiles,
+  isOwnProfile = false,
+}: {
+  tiles: Tile[];
+  isOwnProfile?: boolean;
+}) {
   if (tiles.length === 0) {
     return <p className="text-center text-sm text-gray-500">No tiles yet.</p>;
   }
@@ -36,7 +43,18 @@ export function TileGrid({ tiles }: { tiles: Tile[] }) {
           className="rounded-lg border border-gray-200 p-3 text-left"
         >
           {tile.type === 'text' ? (
-            <p className="text-sm text-gray-900">{tile.text}</p>
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-gray-900">{tile.text}</p>
+              {isOwnProfile && (
+                <Link
+                  to={`/tiles/${tile.id}/edit`}
+                  state={{ text: tile.text }}
+                  className="self-start text-xs font-medium text-gray-600 underline"
+                >
+                  Edit
+                </Link>
+              )}
+            </div>
           ) : (
             <div className="flex flex-col gap-2">
               <img

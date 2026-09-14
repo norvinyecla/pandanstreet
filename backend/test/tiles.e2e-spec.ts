@@ -125,9 +125,9 @@ describe('Tiles (e2e)', () => {
 
     expect(tiles.body).toHaveLength(3);
     expect(tiles.body.map((t: { text: string }) => t.text)).toEqual([
-      'second',
-      'third',
       'fourth',
+      'third',
+      'second',
     ]);
   });
 

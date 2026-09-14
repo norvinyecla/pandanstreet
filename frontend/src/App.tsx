@@ -5,6 +5,8 @@ import { AppShell } from './components/AppShell.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { ProfileEditPage } from './pages/ProfileEditPage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
+import { TileCreatePage } from './pages/TileCreatePage.tsx';
+import { TileEditPage } from './pages/TileEditPage.tsx';
 
 function App() {
   return (
@@ -34,6 +36,22 @@ function App() {
               element={
                 <RequireAuth>
                   <ProfilePage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/tiles/new"
+              element={
+                <RequireAuth>
+                  <TileCreatePage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/tiles/:id/edit"
+              element={
+                <RequireAuth>
+                  <TileEditPage />
                 </RequireAuth>
               }
             />

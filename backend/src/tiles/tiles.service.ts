@@ -96,7 +96,7 @@ export class TilesService {
     const tiles = await this.stores.tiles.readAll();
     const active = tiles
       .filter((tile) => tile.userId === userId && !tile.archived)
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
     const [textRecords, itemRecords] = await Promise.all([
       this.stores.tileText.readAll(),
