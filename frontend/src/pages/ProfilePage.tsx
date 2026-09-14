@@ -86,11 +86,18 @@ export function ProfilePage() {
 
   return (
     <div className="flex flex-col items-center gap-4 pt-6">
-      <img
-        src={resolveAssetUrl(profile.photoUrl) || undefined}
-        alt={`${profile.name}'s profile photo`}
-        className="h-24 w-24 rounded-full bg-gray-100 object-cover"
-      />
+      {resolveAssetUrl(profile.photoUrl) ? (
+        <img
+          src={resolveAssetUrl(profile.photoUrl)}
+          alt={`${profile.name}'s profile photo`}
+          className="h-24 w-24 rounded-full bg-gray-100 object-cover"
+        />
+      ) : (
+        <div
+          aria-hidden="true"
+          className="h-24 w-24 rounded-full bg-gray-100"
+        />
+      )}
       <h1 className="text-xl font-semibold text-gray-900">{profile.name}</h1>
       {profile.bio && (
         <p className="max-w-xs text-center text-sm text-gray-700">
@@ -98,7 +105,10 @@ export function ProfilePage() {
         </p>
       )}
       <div className="flex gap-6 text-sm text-gray-600">
-        <span>{profile.followerCount} followers</span>
+        <span>
+          {profile.followerCount}{' '}
+          {profile.followerCount === 1 ? 'follower' : 'followers'}
+        </span>
         <span>{profile.followingCount} following</span>
       </div>
       {isOwnProfile ? (

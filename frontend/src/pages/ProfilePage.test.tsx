@@ -97,7 +97,7 @@ describe('ProfilePage', () => {
         screen.getByRole('button', { name: /^unfollow$/i }),
       ).toBeInTheDocument(),
     );
-    expect(screen.getByText('1 followers')).toBeInTheDocument();
+    expect(screen.getByText('1 follower')).toBeInTheDocument();
   });
 });
 
