@@ -72,11 +72,18 @@ export function ProfileEditPage() {
       </h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col items-center gap-2">
-          <img
-            src={previewSrc}
-            alt={`${currentUser.name}'s profile photo`}
-            className="h-24 w-24 rounded-full bg-gray-100 object-cover"
-          />
+          {previewSrc ? (
+            <img
+              src={previewSrc}
+              alt={`${currentUser.name}'s profile photo`}
+              className="h-24 w-24 rounded-full bg-gray-100 object-cover"
+            />
+          ) : (
+            <div
+              aria-hidden="true"
+              className="h-24 w-24 rounded-full bg-gray-100"
+            />
+          )}
           <label
             htmlFor="photo"
             className="min-h-11 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
