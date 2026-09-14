@@ -47,6 +47,14 @@ A minimal, mobile-first social media app. Users log in, build a small profile, a
 ### Following
 - Users can follow other users
 - Profile displays follower count and following count
+- Tapping the follower/following count on the user's own profile opens the Followers/Following page
+
+### Discovery & Feeds
+- **Shout-outs** — Text tiles from followed profiles, most recent first, max 20
+- **Bulletin Board** — Item tiles from followed profiles, in a 3-column scrollable grid, max 21
+- **Following** — the current user's followed profiles, each with an Unfollow button
+- **Followers** — profiles following the current user (read-only)
+- **Plaza** — 2–3 randomly-selected profiles the current user doesn't follow (whether or not they follow back) that posted a Text tile, or an Item tile badged green/yellow, in the last 24 hours; requires at least 2 qualifying profiles, otherwise shows an empty state
 
 ## Data Model (CSV files, draft)
 
@@ -63,6 +71,7 @@ A minimal, mobile-first social media app. Users log in, build a small profile, a
 - Tile creation forms adapt to type:
   - Text type → text box (140 char limit, live counter)
   - Item type → file upload + caption text box + badge select box
+- Bulletin Board grid is 3 tiles per row, scrollable, capped at 21 tiles
 
 ## Decisions
 
