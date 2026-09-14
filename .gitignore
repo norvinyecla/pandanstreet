@@ -1,0 +1,18 @@
+node_modules/
+dist/
+build/
+.DS_Store
+*.log
+*.tsbuildinfo
+
+# yarn (node-modules linker) local state
+.yarn/install-state.gz
+.pnp.*
+
+# env files (keep .env.example tracked)
+.env
+.env.local
+
+# uploaded photos are runtime data, not source
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep

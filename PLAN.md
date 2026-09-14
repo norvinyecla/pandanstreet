@@ -6,7 +6,7 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
 
 - Initialize monorepo structure (`/frontend`, `/backend`)
 - Set up `.nvmrc` (latest Node LTS), root-level `.gitignore`, `.editorconfig`
-- Scaffold NestJS app in `/backend` (`yarn`, TypeScript, ESLint, Prettier, Jest preconfigured by Nest CLI)
+- Scaffold NestJS app in `/backend` (`yarn`, TypeScript, oxlint, Prettier, Vitest preconfigured by Nest CLI)
 - Scaffold React app in `/frontend` (TypeScript template), install TailwindCSS and configure it (mobile-first breakpoints, light mode only)
 - Add `.env.example` for both packages; wire up basic config loading (ports, upload limits)
 - Enable CORS on backend for `http://localhost:3000`

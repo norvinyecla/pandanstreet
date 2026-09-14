@@ -33,9 +33,9 @@ Monorepo layout:
 
 Before considering any task done, agents should run:
 
-1. **Lint** — ESLint, in whichever package(s) were touched
+1. **Lint** — oxlint, in whichever package(s) were touched
 2. **Type check** — `tsc --noEmit`
-3. **Tests** — Jest
+3. **Tests** — Vitest
 4. **Manual browser check** — start the dev server and manually verify UI changes actually work in a browser (not just that tests pass)
 
 ## Testing Policy
