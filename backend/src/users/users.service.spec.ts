@@ -1,8 +1,9 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { createCsvStores, type CsvStores } from '../common/csv/csv-stores.js';
+import { newUser } from './test-fixtures.js';
 import { UsersService } from './users.service.js';
 
 describe('UsersService', () => {
@@ -21,25 +22,54 @@ describe('UsersService', () => {
   });
 
   it('creates a new user with a generated id and empty photo', async () => {
-    const user = await service.create('Ada');
+    const user = await service.create(newUser('Ada'));
     expect(user.name).toBe('Ada');
     expect(user.photoUrl).toBe('');
     expect(user.id).toBeTruthy();
   });
 
-  it('findOrCreateByName creates on first call and reuses on subsequent calls', async () => {
-    const first = await service.findOrCreateByName('Grace');
-    const second = await service.findOrCreateByName('Grace');
-    expect(second.id).toBe(first.id);
+  it('rejects creating a second user with a taken username', async () => {
+    await service.create(newUser('Grace'));
+    await expect(service.create(newUser('Grace'))).rejects.toBeInstanceOf(
+      ConflictException,
+    );
 
     const all = await stores.users.readAll();
     expect(all).toHaveLength(1);
   });
 
+  it('signUp stores a password hash, not the password', async () => {
+    const user = await service.signUp('hopper', 'Grace Hopper', 'cobol1959');
+    expect(user.username).toBe('hopper');
+    expect(user.name).toBe('Grace Hopper');
+    expect(user.passwordHash).toBeTruthy();
+    expect(user.passwordHash).not.toContain('cobol1959');
+  });
+
+  it('authenticate accepts the right password and rejects wrong ones', async () => {
+    const user = await service.signUp('hopper', 'Grace Hopper', 'cobol1959');
+
+    await expect(service.authenticate('hopper', 'cobol1959')).resolves.toEqual(
+      user,
+    );
+    await expect(
+      service.authenticate('hopper', 'wrong-pass'),
+    ).resolves.toBeUndefined();
+    await expect(
+      service.authenticate('nobody', 'cobol1959'),
+    ).resolves.toBeUndefined();
+  });
+
+  it('getProfile does not expose the password hash', async () => {
+    const user = await service.signUp('lovelace', 'Ada', 'engine1843');
+    const profile = await service.getProfile(user.id);
+    expect(profile).not.toHaveProperty('passwordHash');
+  });
+
   it('getProfile returns follower/following counts computed from follows.csv', async () => {
-    const alice = await service.create('Alice');
-    const bob = await service.create('Bob');
-    const carol = await service.create('Carol');
+    const alice = await service.create(newUser('Alice'));
+    const bob = await service.create(newUser('Bob'));
+    const carol = await service.create(newUser('Carol'));
 
     await stores.follows.append({
       followerId: bob.id,
@@ -75,7 +105,7 @@ describe('UsersService', () => {
   });
 
   it('setPhotoUrl updates the stored photo path', async () => {
-    const user = await service.create('Dana');
+    const user = await service.create(newUser('Dana'));
     const updated = await service.setPhotoUrl(user.id, '/uploads/dana.jpg');
     expect(updated.photoUrl).toBe('/uploads/dana.jpg');
 
@@ -90,7 +120,7 @@ describe('UsersService', () => {
   });
 
   it('setBio updates the stored bio', async () => {
-    const user = await service.create('Edna');
+    const user = await service.create(newUser('Edna'));
     const updated = await service.setBio(user.id, 'Building things.');
     expect(updated.bio).toBe('Building things.');
 

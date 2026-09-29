@@ -19,6 +19,8 @@ describe('createCsvStores', () => {
 
     await stores.users.append({
       id: 'u1',
+      username: 'ada',
+      passwordHash: 'hash',
       name: 'Ada',
       photoUrl: '',
       bio: '',
@@ -36,6 +38,8 @@ describe('createCsvStores', () => {
     await expect(stores.users.readAll()).resolves.toEqual([
       {
         id: 'u1',
+        username: 'ada',
+        passwordHash: 'hash',
         name: 'Ada',
         photoUrl: '',
         bio: '',

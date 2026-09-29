@@ -13,7 +13,8 @@ import type { UserProfile } from '../api/types.ts';
 interface AuthContextValue {
   currentUser: UserProfile | null;
   isLoading: boolean;
-  login: (name: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
+  signup: (username: string, name: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -41,10 +42,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const login = useCallback(async (name: string) => {
-    const user = await api.post<UserProfile>('/auth/login', { name });
+  const login = useCallback(async (username: string, password: string) => {
+    const user = await api.post<UserProfile>('/auth/login', {
+      username,
+      password,
+    });
     setCurrentUser(user);
   }, []);
+
+  const signup = useCallback(
+    async (username: string, name: string, password: string) => {
+      const user = await api.post<UserProfile>('/auth/signup', {
+        username,
+        name,
+        password,
+      });
+      setCurrentUser(user);
+    },
+    [],
+  );
 
   const logout = useCallback(async () => {
     try {
@@ -56,8 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ currentUser, isLoading, login, logout }),
-    [currentUser, isLoading, login, logout],
+    () => ({ currentUser, isLoading, login, signup, logout }),
+    [currentUser, isLoading, login, signup, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -58,7 +58,7 @@ A minimal, mobile-first social media app. Users log in, build a small profile, a
 
 ## Data Model (CSV files, draft)
 
-- `users.csv` — id, name, photoUrl, bio, createdAt
+- `users.csv` — id, username, passwordHash, name, photoUrl, bio, createdAt
 - `follows.csv` — followerId, followeeId, createdAt
 - `tiles.csv` — id, userId, type (`text` | `item`), createdAt, archived (bool)
 - `tile_text.csv` — tileId, text
@@ -76,7 +76,7 @@ A minimal, mobile-first social media app. Users log in, build a small profile, a
 
 ## Decisions
 
-- **Login:** simple session-based auth (no OAuth) for the prototype.
+- **Login:** session-based auth (no OAuth) with a separate sign-up step. Users sign up with a unique username, display name, and password, and log in with username + password. Passwords are hashed with Node's built-in `crypto.scrypt`.
 - **Archived tiles:** marked inactive/hidden, not deleted — kept in `tiles.csv` with `archived = true`.
 - **Photo storage:** uploaded photos are saved to local disk; the file path is referenced in the CSV (since CSVs can't hold binary data).
 - **Editing tiles:** only **Text** tiles can be edited after creation (text content can be updated in place). **Item** tiles are immutable once created — to change one, the user creates a new tile (which may archive the oldest).
