@@ -7,6 +7,7 @@ import {
 } from 'react';
 import { api, ApiError } from '../api/client.ts';
 import type { BadgeColor, Tile } from '../api/types.ts';
+import { useToast } from '../toast/toastContext.ts';
 import { BADGE_MESSAGES, BadgeLozenge } from './TileGrid.tsx';
 
 const TEXT_MAX_LENGTH = 140;
@@ -345,6 +346,7 @@ export function AddTileSheet({
   onCreated: () => void;
 }) {
   const [type, setType] = useState<TileType | null>(null);
+  const showToast = useToast();
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -357,6 +359,7 @@ export function AddTileSheet({
   }, [onClose]);
 
   const handleCreated = () => {
+    showToast('Post created');
     onCreated();
     onClose();
   };

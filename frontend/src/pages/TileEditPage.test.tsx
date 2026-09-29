@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '../auth/AuthContext.tsx';
+import { ToastProvider } from '../toast/ToastProvider.tsx';
 import { TileEditPage } from './TileEditPage.tsx';
 
 const me = {
@@ -28,24 +29,25 @@ function mockFetch(
       const path = new URL(url).pathname;
       const handler = handlers[`${method} ${path}`] ?? handlers[path];
       if (!handler) {
-        return Promise.reject(new Error(`Unexpected fetch to ${method} ${url}`));
+        return Promise.reject(
+          new Error(`Unexpected fetch to ${method} ${url}`),
+        );
       }
       return handler(init);
     }),
   );
 }
 
-function renderEditPage(initialEntry: {
-  pathname: string;
-  state?: unknown;
-}) {
+function renderEditPage(initialEntry: { pathname: string; state?: unknown }) {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <AuthProvider>
-        <Routes>
-          <Route path="/tiles/:id/edit" element={<TileEditPage />} />
-          <Route path="/" element={<p>Home</p>} />
-        </Routes>
+        <ToastProvider>
+          <Routes>
+            <Route path="/tiles/:id/edit" element={<TileEditPage />} />
+            <Route path="/" element={<p>Home</p>} />
+          </Routes>
+        </ToastProvider>
       </AuthProvider>
     </MemoryRouter>,
   );
@@ -56,7 +58,7 @@ describe('TileEditPage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('pre-fills text from router state, saves, and navigates home', async () => {
+  it('pre-fills text from router state, saves, navigates home, and confirms', async () => {
     const patched: unknown[] = [];
     mockFetch({
       '/auth/me': () => jsonResponse(me),
@@ -87,6 +89,7 @@ describe('TileEditPage', () => {
 
     expect(await screen.findByText('Home')).toBeInTheDocument();
     expect(patched).toEqual([JSON.stringify({ text: 'Updated text' })]);
+    expect(screen.getByRole('status')).toHaveTextContent('Post updated');
   });
 
   it('fetches the tile by id when no router state is available', async () => {

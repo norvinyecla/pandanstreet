@@ -9,72 +9,75 @@ import { ProfileEditPage } from './pages/ProfileEditPage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
 import { ShoutoutsPage } from './pages/ShoutoutsPage.tsx';
 import { TileEditPage } from './pages/TileEditPage.tsx';
+import { ToastProvider } from './toast/ToastProvider.tsx';
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppShell>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route
-              path="/"
-              element={
-                <RequireAuth>
-                  <ProfilePage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/profile/edit"
-              element={
-                <RequireAuth>
-                  <ProfileEditPage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/users/:id"
-              element={
-                <RequireAuth>
-                  <ProfilePage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/tiles/:id/edit"
-              element={
-                <RequireAuth>
-                  <TileEditPage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/shoutouts"
-              element={
-                <RequireAuth>
-                  <ShoutoutsPage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/bulletin-board"
-              element={
-                <RequireAuth>
-                  <BulletinBoardPage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/plaza"
-              element={
-                <RequireAuth>
-                  <PlazaPage />
-                </RequireAuth>
-              }
-            />
-          </Routes>
-        </AppShell>
+        <ToastProvider>
+          <AppShell>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route
+                path="/"
+                element={
+                  <RequireAuth>
+                    <ProfilePage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/profile/edit"
+                element={
+                  <RequireAuth>
+                    <ProfileEditPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/users/:id"
+                element={
+                  <RequireAuth>
+                    <ProfilePage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/tiles/:id/edit"
+                element={
+                  <RequireAuth>
+                    <TileEditPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/shoutouts"
+                element={
+                  <RequireAuth>
+                    <ShoutoutsPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/bulletin-board"
+                element={
+                  <RequireAuth>
+                    <BulletinBoardPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/plaza"
+                element={
+                  <RequireAuth>
+                    <PlazaPage />
+                  </RequireAuth>
+                }
+              />
+            </Routes>
+          </AppShell>
+        </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   );

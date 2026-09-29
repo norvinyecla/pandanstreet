@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ToastProvider } from '../toast/ToastProvider.tsx';
 import { AddTileSheet } from './AddTileSheet.tsx';
 
 function jsonResponse(body: unknown, status = 200) {
@@ -29,7 +30,11 @@ function mockFetch(
 function renderSheet() {
   const onClose = vi.fn();
   const onCreated = vi.fn();
-  render(<AddTileSheet onClose={onClose} onCreated={onCreated} />);
+  render(
+    <ToastProvider>
+      <AddTileSheet onClose={onClose} onCreated={onCreated} />
+    </ToastProvider>,
+  );
   return { onClose, onCreated };
 }
 
@@ -48,7 +53,7 @@ describe('AddTileSheet', () => {
     expect(screen.getByRole('button', { name: /^item/i })).toBeInTheDocument();
   });
 
-  it('creates a text tile, then notifies and closes', async () => {
+  it('creates a text tile, then confirms, notifies, and closes', async () => {
     const posted: unknown[] = [];
     mockFetch({
       'POST /tiles/text': (init) => {
@@ -73,6 +78,7 @@ describe('AddTileSheet', () => {
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(posted).toEqual([JSON.stringify({ text: 'Hi there' })]);
+    expect(screen.getByRole('status')).toHaveTextContent('Post created');
   });
 
   it('rejects an empty text tile without calling the API', async () => {
