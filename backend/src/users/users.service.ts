@@ -1,5 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { hashPassword, verifyPassword } from '../common/auth/password.js';
 import { CSV_STORES } from '../common/csv/csv.module.js';
 import type { CsvStores } from '../common/csv/csv-stores.js';
 import type { UserRecord } from '../common/csv/entities.js';
@@ -14,26 +20,50 @@ export class UsersService {
     return users.find((user) => user.id === id);
   }
 
-  async findByName(name: string): Promise<UserRecord | undefined> {
+  async findByUsername(username: string): Promise<UserRecord | undefined> {
     const users = await this.stores.users.readAll();
-    return users.find((user) => user.name === name);
+    return users.find((user) => user.username === username);
   }
 
-  async create(name: string): Promise<UserRecord> {
-    return this.stores.users.append({
-      id: randomUUID(),
-      name,
-      photoUrl: '',
-      bio: '',
-      createdAt: new Date().toISOString(),
-    });
+  /** Creates a user; throws `ConflictException` if the username is taken. */
+  async create(input: {
+    username: string;
+    name: string;
+    passwordHash: string;
+  }): Promise<UserRecord> {
+    const created = await this.stores.users.appendUnless(
+      (user) => user.username === input.username,
+      {
+        id: randomUUID(),
+        ...input,
+        photoUrl: '',
+        bio: '',
+        createdAt: new Date().toISOString(),
+      },
+    );
+    if (!created) throw new ConflictException('Username is already taken');
+    return created;
   }
 
-  /** Finds the user with this name, or creates one (name-only login, no passwords). */
-  async findOrCreateByName(name: string): Promise<UserRecord> {
-    const existing = await this.findByName(name);
-    if (existing) return existing;
-    return this.create(name);
+  async signUp(
+    username: string,
+    name: string,
+    password: string,
+  ): Promise<UserRecord> {
+    const passwordHash = await hashPassword(password);
+    return this.create({ username, name, passwordHash });
+  }
+
+  /** Returns the user if the username/password pair is valid. */
+  async authenticate(
+    username: string,
+    password: string,
+  ): Promise<UserRecord | undefined> {
+    const user = await this.findByUsername(username);
+    if (!user || !(await verifyPassword(password, user.passwordHash))) {
+      return undefined;
+    }
+    return user;
   }
 
   async setPhotoUrl(id: string, photoUrl: string): Promise<UserRecord> {

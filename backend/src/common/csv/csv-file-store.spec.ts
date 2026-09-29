@@ -47,6 +47,25 @@ describe('CsvFileStore', () => {
     ]);
   });
 
+  it('appendUnless skips the append when a conflicting row exists', async () => {
+    const sameId = (id: string) => (record: TestRecord) => record.id === id;
+    const make = (id: string, label: string): TestRecord => ({
+      id,
+      label,
+      count: 0,
+      active: true,
+    });
+
+    const results = await Promise.all([
+      store.appendUnless(sameId('1'), make('1', 'first')),
+      store.appendUnless(sameId('1'), make('1', 'second')),
+    ]);
+
+    expect(results[0]).toEqual(make('1', 'first'));
+    expect(results[1]).toBeUndefined();
+    await expect(store.readAll()).resolves.toEqual([make('1', 'first')]);
+  });
+
   it('round-trips values containing commas, quotes, and newlines', async () => {
     const record: TestRecord = {
       id: '1',

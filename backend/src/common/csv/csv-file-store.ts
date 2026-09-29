@@ -62,6 +62,23 @@ export class CsvFileStore<T extends Record<string, unknown>> {
     });
   }
 
+  /**
+   * Appends `record` unless an existing row matches `conflicts`; the check and
+   * write happen in one queued step so concurrent callers can't both succeed.
+   */
+  async appendUnless(
+    conflicts: (record: T) => boolean,
+    record: T,
+  ): Promise<T | undefined> {
+    return this.enqueue(async () => {
+      const rows = await this.readAll();
+      if (rows.some(conflicts)) return undefined;
+      rows.push(record);
+      await this.writeAll(rows);
+      return record;
+    });
+  }
+
   async update(
     predicate: (record: T) => boolean,
     updater: (record: T) => T,

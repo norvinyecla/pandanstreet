@@ -10,6 +10,8 @@ import type {
 
 const userColumns: CsvColumn<UserRecord>[] = [
   { name: 'id', type: 'string' },
+  { name: 'username', type: 'string' },
+  { name: 'passwordHash', type: 'string' },
   { name: 'name', type: 'string' },
   { name: 'photoUrl', type: 'string' },
   { name: 'bio', type: 'string' },

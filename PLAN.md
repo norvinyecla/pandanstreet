@@ -95,10 +95,26 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
 - **Plaza** page: shows the 2–3 randomly-selected discoverable profiles with a Follow button on each; empty state when fewer than 2 candidates qualify
 - Tests for each new page's rendering, empty states, and the unfollow/follow interactions
 
+## Phase 12 — Username & Password Login
+
+- **Schema:** `users.csv` gains `username` and `passwordHash` columns; existing dev data is reset (no migration)
+- **Backend:**
+  - `POST /auth/signup` (username, display name, password) creates the user and logs them in; `409` if the username is taken
+  - `POST /auth/login` (username, password) only authenticates existing users — no more find-or-create; a wrong username or password returns the same generic `401`
+  - Passwords hashed with Node's built-in `crypto.scrypt` (per-user random salt, constant-time compare) — no new dependency
+  - Username: 3–30 chars, lowercase letters/digits/underscore, unique; password: 8–20 chars
+  - `passwordHash` never leaves the backend (excluded from all profile/user DTOs)
+  - Regenerate the session on login/signup
+- **Frontend:**
+  - Login page: username + password fields, link to sign-up
+  - Sign-up page: username, display name, password fields, link to login
+- Tests: signup (success, duplicate username, validation), login (success, wrong password, unknown user), hashing round-trip, hash not exposed; Login/Sign-up page rendering and submission
+
 ## Out of Scope (for this prototype)
 
 - Dark mode
 - OAuth / third-party login
+- Password reset, email verification, login rate limiting
 - Real database (Postgres, etc.)
 - Editing Item tiles
 - Notifications, comments, likes, or any interaction beyond follow

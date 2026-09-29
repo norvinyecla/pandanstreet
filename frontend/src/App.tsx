@@ -10,6 +10,7 @@ import { PlazaPage } from './pages/PlazaPage.tsx';
 import { ProfileEditPage } from './pages/ProfileEditPage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
 import { ShoutoutsPage } from './pages/ShoutoutsPage.tsx';
+import { SignupPage } from './pages/SignupPage.tsx';
 import { TileEditPage } from './pages/TileEditPage.tsx';
 import { ToastProvider } from './toast/ToastProvider.tsx';
 
@@ -21,6 +22,7 @@ function App() {
           <AppShell>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
               <Route
                 path="/"
                 element={

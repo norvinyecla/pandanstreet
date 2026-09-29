@@ -40,7 +40,10 @@ describe('Tiles (e2e)', () => {
 
   async function loginAs(name: string) {
     const agent = request.agent(app.getHttpServer());
-    const res = await agent.post('/auth/login').send({ name }).expect(201);
+    const res = await agent
+      .post('/auth/signup')
+      .send({ username: name.toLowerCase(), name, password: 'password123' })
+      .expect(201);
     return { agent, id: res.body.id as string };
   }
 

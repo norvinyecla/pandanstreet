@@ -1,1 +1,1 @@
-id,name,photoUrl,bio,createdAt
+id,username,passwordHash,name,photoUrl,bio,createdAt

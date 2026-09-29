@@ -4,9 +4,10 @@ import { useAuth } from '../auth/AuthContext.tsx';
 import { ApiError } from '../api/client.ts';
 import { AuthField } from '../components/AuthField.tsx';
 
-export function LoginPage() {
-  const { currentUser, isLoading, login } = useAuth();
+export function SignupPage() {
+  const { currentUser, isLoading, signup } = useAuth();
   const [username, setUsername] = useState('');
+  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,10 +21,12 @@ export function LoginPage() {
     setError(null);
     setIsSubmitting(true);
     try {
-      await login(username.trim(), password);
+      await signup(username.trim(), name.trim(), password);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : 'Unable to log in. Try again.',
+        err instanceof ApiError
+          ? err.message
+          : 'Unable to create your account. Try again.',
       );
     } finally {
       setIsSubmitting(false);
@@ -33,27 +36,42 @@ export function LoginPage() {
   return (
     <div className="flex flex-col gap-6 pt-8">
       <h1 className="text-center text-xl font-semibold text-gray-900">
-        Welcome to pandanstreet
+        Create your account
       </h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <AuthField
           id="username"
           label="Username"
+          hint="3–30 characters: lowercase letters, numbers, or underscores"
           type="text"
           autoComplete="username"
           autoCapitalize="none"
           spellCheck={false}
           required
+          minLength={3}
           maxLength={30}
+          pattern="[a-z0-9_]+"
           value={username}
           onChange={(event) => setUsername(event.target.value.toLowerCase())}
         />
         <AuthField
+          id="name"
+          label="Display name"
+          type="text"
+          autoComplete="name"
+          required
+          maxLength={60}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+        <AuthField
           id="password"
           label="Password"
+          hint="8–20 characters"
           type="password"
-          autoComplete="current-password"
+          autoComplete="new-password"
           required
+          minLength={8}
           maxLength={20}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
@@ -68,20 +86,21 @@ export function LoginPage() {
           disabled={
             isSubmitting ||
             username.trim().length === 0 ||
+            name.trim().length === 0 ||
             password.length === 0
           }
           className="min-h-11 rounded-md bg-gray-900 px-4 text-base font-medium text-white disabled:opacity-50"
         >
-          {isSubmitting ? 'Logging in…' : 'Log in'}
+          {isSubmitting ? 'Creating account…' : 'Sign up'}
         </button>
       </form>
       <p className="text-center text-sm text-gray-600">
-        New here?{' '}
+        Already have an account?{' '}
         <Link
-          to="/signup"
+          to="/login"
           className="inline-block py-2 font-medium text-gray-900 underline"
         >
-          Create an account
+          Log in
         </Link>
       </p>
     </div>

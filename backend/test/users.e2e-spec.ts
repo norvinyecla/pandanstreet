@@ -7,6 +7,12 @@ import session from 'express-session';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 
+const PASSWORD = 'password123';
+
+function signupBody(name: string) {
+  return { username: name.toLowerCase(), name, password: PASSWORD };
+}
+
 describe('Users & Auth (e2e)', () => {
   let app: INestApplication;
   let dir: string;
@@ -38,10 +44,10 @@ describe('Users & Auth (e2e)', () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  it('logs in with a new name, creating the user', async () => {
+  it('signs up a new user and returns their profile', async () => {
     const res = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({ name: 'Ada' })
+      .post('/auth/signup')
+      .send(signupBody('Ada'))
       .expect(201);
 
     expect(res.body).toMatchObject({
@@ -51,37 +57,76 @@ describe('Users & Auth (e2e)', () => {
       followingCount: 0,
     });
     expect(res.body.id).toBeTruthy();
+    expect(res.body).not.toHaveProperty('passwordHash');
   });
 
-  it('rejects an empty name on login', async () => {
+  it('rejects signing up with a taken username', async () => {
     await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({ name: '' })
+      .post('/auth/signup')
+      .send(signupBody('Grace'))
+      .expect(201);
+    await request(app.getHttpServer())
+      .post('/auth/signup')
+      .send(signupBody('Grace'))
+      .expect(409);
+  });
+
+  it.each([
+    ['a short username', { username: 'ab' }],
+    ['an uppercase username', { username: 'Grace' }],
+    ['a username with spaces', { username: 'grace h' }],
+    ['a short password', { password: 'seven77' }],
+    ['a long password', { password: 'x'.repeat(21) }],
+    ['an empty name', { name: '' }],
+  ])('rejects signing up with %s', async (_label, override) => {
+    await request(app.getHttpServer())
+      .post('/auth/signup')
+      .send({ ...signupBody('Valid'), ...override })
       .expect(400);
   });
 
-  it('reuses the same user id across repeated logins with the same name', async () => {
-    const first = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({ name: 'Grace' })
-      .expect(201);
-    const second = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({ name: 'Grace' })
-      .expect(201);
+  it('logs in an existing user with the right password', async () => {
+    const signup = await request(app.getHttpServer())
+      .post('/auth/signup')
+      .send(signupBody('Turing'));
 
-    expect(second.body.id).toBe(first.body.id);
+    const agent = request.agent(app.getHttpServer());
+    const res = await agent
+      .post('/auth/login')
+      .send({ username: 'turing', password: PASSWORD })
+      .expect(200);
+
+    expect(res.body.id).toBe(signup.body.id);
+    const me = await agent.get('/auth/me').expect(200);
+    expect(me.body.id).toBe(signup.body.id);
+  });
+
+  it('rejects a wrong password and an unknown username the same way', async () => {
+    await request(app.getHttpServer())
+      .post('/auth/signup')
+      .send(signupBody('Turing'));
+
+    const wrongPassword = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ username: 'turing', password: 'not-the-one' })
+      .expect(401);
+    const unknownUser = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ username: 'nobody', password: PASSWORD })
+      .expect(401);
+
+    expect(wrongPassword.body.message).toBe(unknownUser.body.message);
   });
 
   it('persists a session across requests and supports logout', async () => {
     const agent = request.agent(app.getHttpServer());
-    const login = await agent
-      .post('/auth/login')
-      .send({ name: 'Hopper' })
+    const signup = await agent
+      .post('/auth/signup')
+      .send(signupBody('Hopper'))
       .expect(201);
 
     const me = await agent.get('/auth/me').expect(200);
-    expect(me.body.id).toBe(login.body.id);
+    expect(me.body.id).toBe(signup.body.id);
 
     await agent.post('/auth/logout').expect(204);
     await agent.get('/auth/me').expect(401);
@@ -93,8 +138,8 @@ describe('Users & Auth (e2e)', () => {
 
   it('fetches a user profile without authentication', async () => {
     const login = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({ name: 'Turing' })
+      .post('/auth/signup')
+      .send(signupBody('Turing'))
       .expect(201);
 
     const res = await request(app.getHttpServer())
@@ -116,10 +161,10 @@ describe('Users & Auth (e2e)', () => {
 
   it('rejects uploading a photo to a different user while logged in', async () => {
     const agent = request.agent(app.getHttpServer());
-    const me = await agent.post('/auth/login').send({ name: 'Lovelace' });
+    const me = await agent.post('/auth/signup').send(signupBody('Lovelace'));
     const other = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({ name: 'Babbage' });
+      .post('/auth/signup')
+      .send(signupBody('Babbage'));
 
     await agent
       .post(`/users/${other.body.id}/photo`)
@@ -130,7 +175,7 @@ describe('Users & Auth (e2e)', () => {
 
   it('rejects a disallowed file type', async () => {
     const agent = request.agent(app.getHttpServer());
-    const me = await agent.post('/auth/login').send({ name: 'Curie' });
+    const me = await agent.post('/auth/signup').send(signupBody('Curie'));
 
     await agent
       .post(`/users/${me.body.id}/photo`)
@@ -143,7 +188,7 @@ describe('Users & Auth (e2e)', () => {
 
   it('accepts a valid photo upload and updates the profile photoUrl', async () => {
     const agent = request.agent(app.getHttpServer());
-    const me = await agent.post('/auth/login').send({ name: 'Franklin' });
+    const me = await agent.post('/auth/signup').send(signupBody('Franklin'));
 
     const res = await agent
       .post(`/users/${me.body.id}/photo`)
@@ -165,10 +210,10 @@ describe('Users & Auth (e2e)', () => {
 
   it('rejects updating a bio for a different user while logged in', async () => {
     const agent = request.agent(app.getHttpServer());
-    await agent.post('/auth/login').send({ name: 'Noether' });
+    await agent.post('/auth/signup').send(signupBody('Noether'));
     const other = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({ name: 'Hilbert' });
+      .post('/auth/signup')
+      .send(signupBody('Hilbert'));
 
     await agent
       .patch(`/users/${other.body.id}/bio`)
@@ -178,7 +223,7 @@ describe('Users & Auth (e2e)', () => {
 
   it('rejects a bio longer than 140 characters', async () => {
     const agent = request.agent(app.getHttpServer());
-    const me = await agent.post('/auth/login').send({ name: 'Euler' });
+    const me = await agent.post('/auth/signup').send(signupBody('Euler'));
 
     await agent
       .patch(`/users/${me.body.id}/bio`)
@@ -188,7 +233,7 @@ describe('Users & Auth (e2e)', () => {
 
   it('updates and returns the profile bio', async () => {
     const agent = request.agent(app.getHttpServer());
-    const me = await agent.post('/auth/login').send({ name: 'Noether2' });
+    const me = await agent.post('/auth/signup').send(signupBody('Noether2'));
 
     const res = await agent
       .patch(`/users/${me.body.id}/bio`)

@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { createCsvStores, type CsvStores } from '../common/csv/csv-stores.js';
 import { FollowsService } from '../follows/follows.service.js';
+import { newUser } from '../users/test-fixtures.js';
 import { UsersService } from '../users/users.service.js';
 import { TilesService } from './tiles.service.js';
 
@@ -31,7 +32,7 @@ describe('TilesService', () => {
   });
 
   it('createText creates a text tile', async () => {
-    const alice = await usersService.create('Alice');
+    const alice = await usersService.create(newUser('Alice'));
 
     const tile = await service.createText(alice.id, 'Hello world');
 
@@ -48,7 +49,7 @@ describe('TilesService', () => {
   });
 
   it('createItem creates an item tile', async () => {
-    const alice = await usersService.create('Alice');
+    const alice = await usersService.create(newUser('Alice'));
 
     const tile = await service.createItem(
       alice.id,
@@ -68,7 +69,7 @@ describe('TilesService', () => {
   });
 
   it('auto-archives the oldest active tile when creating a 4th', async () => {
-    const alice = await usersService.create('Alice');
+    const alice = await usersService.create(newUser('Alice'));
     const first = await service.createText(alice.id, 'first');
     await service.createText(alice.id, 'second');
     await service.createText(alice.id, 'third');
@@ -89,7 +90,7 @@ describe('TilesService', () => {
   });
 
   it('getActiveTiles returns tiles most recently created first, excluding archived', async () => {
-    const alice = await usersService.create('Alice');
+    const alice = await usersService.create(newUser('Alice'));
     await service.createText(alice.id, 'first');
     await service.createItem(alice.id, '/uploads/p.jpg', 'caption', 'red');
 
@@ -107,7 +108,7 @@ describe('TilesService', () => {
   });
 
   it('editText updates an existing text tile', async () => {
-    const alice = await usersService.create('Alice');
+    const alice = await usersService.create(newUser('Alice'));
     const tile = await service.createText(alice.id, 'original');
 
     const updated = await service.editText(tile.id, alice.id, 'updated');
@@ -118,7 +119,7 @@ describe('TilesService', () => {
   });
 
   it('editText throws BadRequestException for an item tile', async () => {
-    const alice = await usersService.create('Alice');
+    const alice = await usersService.create(newUser('Alice'));
     const tile = await service.createItem(alice.id, '/uploads/p.jpg', 'cap', 'red');
 
     await expect(
@@ -127,8 +128,8 @@ describe('TilesService', () => {
   });
 
   it('editText throws ForbiddenException when editing another user\'s tile', async () => {
-    const alice = await usersService.create('Alice');
-    const bob = await usersService.create('Bob');
+    const alice = await usersService.create(newUser('Alice'));
+    const bob = await usersService.create(newUser('Bob'));
     const tile = await service.createText(alice.id, 'original');
 
     await expect(
@@ -137,7 +138,7 @@ describe('TilesService', () => {
   });
 
   it('editText throws NotFoundException for an unknown tile', async () => {
-    const alice = await usersService.create('Alice');
+    const alice = await usersService.create(newUser('Alice'));
 
     await expect(
       service.editText('missing', alice.id, 'text'),
@@ -145,7 +146,7 @@ describe('TilesService', () => {
   });
 
   it('archive hides a text or item tile but keeps its row', async () => {
-    const alice = await usersService.create('Alice');
+    const alice = await usersService.create(newUser('Alice'));
     const text = await service.createText(alice.id, 'Hello');
     const item = await service.createItem(alice.id, '/uploads/p.jpg', 'Photo', 'red');
 
@@ -159,8 +160,8 @@ describe('TilesService', () => {
   });
 
   it("archive throws ForbiddenException for another user's tile", async () => {
-    const alice = await usersService.create('Alice');
-    const bob = await usersService.create('Bob');
+    const alice = await usersService.create(newUser('Alice'));
+    const bob = await usersService.create(newUser('Bob'));
     const tile = await service.createText(alice.id, 'Hello');
 
     await expect(service.archive(tile.id, bob.id)).rejects.toBeInstanceOf(
@@ -170,7 +171,7 @@ describe('TilesService', () => {
   });
 
   it('archive throws NotFoundException for an unknown or already archived tile', async () => {
-    const alice = await usersService.create('Alice');
+    const alice = await usersService.create(newUser('Alice'));
     const tile = await service.createText(alice.id, 'Hello');
     await service.archive(tile.id, alice.id);
 
@@ -183,9 +184,9 @@ describe('TilesService', () => {
   });
 
   it('getShoutouts returns Text tiles from followed profiles, most recent first', async () => {
-    const alice = await usersService.create('Alice');
-    const bob = await usersService.create('Bob');
-    const carol = await usersService.create('Carol');
+    const alice = await usersService.create(newUser('Alice'));
+    const bob = await usersService.create(newUser('Bob'));
+    const carol = await usersService.create(newUser('Carol'));
     await followsService.follow(alice.id, bob.id);
     await service.createText(bob.id, 'from bob');
     await service.createItem(bob.id, '/uploads/p.jpg', 'cap', 'red');
@@ -203,9 +204,9 @@ describe('TilesService', () => {
   it('getShoutouts caps results at 20', async () => {
     // Each user can have at most 3 active tiles, so spread 24 text tiles
     // across 8 followed users to exceed the 20-item cap.
-    const alice = await usersService.create('Alice');
+    const alice = await usersService.create(newUser('Alice'));
     for (let u = 0; u < 8; u++) {
-      const followee = await usersService.create(`Followee${u}`);
+      const followee = await usersService.create(newUser(`Followee${u}`));
       await followsService.follow(alice.id, followee.id);
       for (let i = 0; i < 3; i++) {
         await service.createText(followee.id, `text ${u}-${i}`);
@@ -218,9 +219,9 @@ describe('TilesService', () => {
   });
 
   it('getBulletinBoard returns Item tiles from followed profiles, most recent first', async () => {
-    const alice = await usersService.create('Alice');
-    const bob = await usersService.create('Bob');
-    const carol = await usersService.create('Carol');
+    const alice = await usersService.create(newUser('Alice'));
+    const bob = await usersService.create(newUser('Bob'));
+    const carol = await usersService.create(newUser('Carol'));
     await followsService.follow(alice.id, bob.id);
     await service.createItem(bob.id, '/uploads/p.jpg', 'from bob', 'green');
     await service.createText(bob.id, 'text, not an item');
@@ -239,9 +240,9 @@ describe('TilesService', () => {
   it('getBulletinBoard caps results at 21', async () => {
     // Each user can have at most 3 active tiles, so spread 24 item tiles
     // across 8 followed users to exceed the 21-item cap.
-    const alice = await usersService.create('Alice');
+    const alice = await usersService.create(newUser('Alice'));
     for (let u = 0; u < 8; u++) {
-      const followee = await usersService.create(`Followee${u}`);
+      const followee = await usersService.create(newUser(`Followee${u}`));
       await followsService.follow(alice.id, followee.id);
       for (let i = 0; i < 3; i++) {
         await service.createItem(
