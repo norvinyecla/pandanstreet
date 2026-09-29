@@ -43,13 +43,15 @@ export function TileGrid({
           className="rounded-lg border border-gray-200 p-3 text-left"
         >
           {tile.type === 'text' ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm text-gray-900">{tile.text}</p>
+            <div className="flex items-start justify-between gap-3">
+              <p className="min-w-0 flex-1 text-sm break-words text-gray-900">
+                {tile.text}
+              </p>
               {isOwnProfile && (
                 <Link
                   to={`/tiles/${tile.id}/edit`}
                   state={{ text: tile.text }}
-                  className="self-start text-xs font-medium text-gray-600 underline"
+                  className="-m-3 shrink-0 p-3 text-xs font-medium text-gray-600 underline"
                 >
                   Edit
                 </Link>
