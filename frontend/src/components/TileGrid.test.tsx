@@ -164,4 +164,20 @@ describe('TileGrid', () => {
       'Tile not found',
     );
   });
+
+  it('cancels the delete confirmation when Escape is pressed', async () => {
+    const onDelete = vi.fn(() => Promise.resolve());
+    const user = userEvent.setup();
+    render(<TileGrid tiles={ownTiles} isOwnProfile onDelete={onDelete} />, {
+      wrapper: MemoryRouter,
+    });
+
+    await user.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
+    expect(screen.getByText('Delete this post?')).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByText('Delete this post?')).not.toBeInTheDocument();
+    expect(onDelete).not.toHaveBeenCalled();
+  });
 });

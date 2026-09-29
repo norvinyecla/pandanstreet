@@ -402,11 +402,15 @@ export function AddTileSheet({
 
   useEffect(() => {
     panelRef.current?.focus();
+    // Capture on window so Escape closes only the sheet, not the page's own
+    // Escape handling (edit page, tile delete confirmation) underneath it.
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      onClose();
     };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [onClose]);
 
   const handleCreated = () => {

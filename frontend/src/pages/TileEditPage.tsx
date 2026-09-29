@@ -53,6 +53,15 @@ export function TileEditPage() {
     };
   }, [id, initialText, currentUser]);
 
+  useEffect(() => {
+    if (isSubmitting) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') navigate('/');
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isSubmitting, navigate]);
+
   if (!id) return null;
 
   const handleSubmit = async (event: FormEvent) => {

@@ -164,6 +164,19 @@ describe('AddTileSheet', () => {
     expect(onCreated).not.toHaveBeenCalled();
   });
 
+  it('stops Escape from reaching handlers on the page underneath', async () => {
+    const pageHandler = vi.fn();
+    document.addEventListener('keydown', pageHandler);
+    onTestFinished(() => document.removeEventListener('keydown', pageHandler));
+
+    const user = userEvent.setup();
+    const { onClose } = renderSheet();
+    await user.keyboard('{Escape}');
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(pageHandler).not.toHaveBeenCalled();
+  });
+
   it('closes via Cancel, the backdrop, or Escape', async () => {
     const user = userEvent.setup();
     const { onClose } = renderSheet();

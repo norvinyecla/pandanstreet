@@ -92,6 +92,21 @@ describe('TileEditPage', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Post updated');
   });
 
+  it('returns home without saving when Escape is pressed', async () => {
+    mockFetch({ '/auth/me': () => jsonResponse(me) });
+
+    const user = userEvent.setup();
+    renderEditPage({
+      pathname: '/tiles/t1/edit',
+      state: { text: 'Original text' },
+    });
+
+    await screen.findByLabelText(/text/i);
+    await user.keyboard('{Escape}');
+
+    expect(await screen.findByText('Home')).toBeInTheDocument();
+  });
+
   it('fetches the tile by id when no router state is available', async () => {
     mockFetch({
       '/auth/me': () => jsonResponse(me),

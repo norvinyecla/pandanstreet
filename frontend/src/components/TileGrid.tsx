@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ApiError, resolveAssetUrl } from '../api/client.ts';
 import type { BadgeColor, Tile } from '../api/types.ts';
@@ -40,6 +40,15 @@ function TileCard({
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const canDelete = isOwnProfile && onDelete !== undefined;
+
+  useEffect(() => {
+    if (!isConfirmingDelete || isDeleting) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsConfirmingDelete(false);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isConfirmingDelete, isDeleting]);
 
   const handleConfirmDelete = async () => {
     if (!onDelete) return;
