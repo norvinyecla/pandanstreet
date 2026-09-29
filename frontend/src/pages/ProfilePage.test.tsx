@@ -75,6 +75,14 @@ describe('ProfilePage', () => {
     expect(
       screen.queryByRole('button', { name: /follow/i }),
     ).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '1 follower' })).toHaveAttribute(
+      'href',
+      '/followers',
+    );
+    expect(screen.getByRole('link', { name: '2 following' })).toHaveAttribute(
+      'href',
+      '/following',
+    );
   });
 
   it('shows a follow button for another user and toggles it on click', async () => {
@@ -93,6 +101,9 @@ describe('ProfilePage', () => {
     const followButton = await screen.findByRole('button', {
       name: /^follow$/i,
     });
+    expect(
+      screen.queryByRole('link', { name: /follower|following/i }),
+    ).not.toBeInTheDocument();
     await user.click(followButton);
 
     await waitFor(() =>

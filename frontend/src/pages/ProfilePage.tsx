@@ -92,6 +92,11 @@ export function ProfilePage() {
     return <p className="text-center text-sm text-gray-500">Loading…</p>;
   }
 
+  const followerLabel = `${profile.followerCount} ${
+    profile.followerCount === 1 ? 'follower' : 'followers'
+  }`;
+  const followingLabel = `${profile.followingCount} following`;
+
   return (
     <div className="flex flex-col items-center gap-4 pt-6">
       {resolveAssetUrl(profile.photoUrl) ? (
@@ -113,11 +118,21 @@ export function ProfilePage() {
         </p>
       )}
       <div className="flex gap-6 text-sm text-gray-600">
-        <span>
-          {profile.followerCount}{' '}
-          {profile.followerCount === 1 ? 'follower' : 'followers'}
-        </span>
-        <span>{profile.followingCount} following</span>
+        {isOwnProfile ? (
+          <>
+            <Link to="/followers" className="flex min-h-11 items-center">
+              {followerLabel}
+            </Link>
+            <Link to="/following" className="flex min-h-11 items-center">
+              {followingLabel}
+            </Link>
+          </>
+        ) : (
+          <>
+            <span>{followerLabel}</span>
+            <span>{followingLabel}</span>
+          </>
+        )}
       </div>
       {isOwnProfile ? (
         <Link

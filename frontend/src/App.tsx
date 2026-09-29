@@ -3,6 +3,8 @@ import { AuthProvider } from './auth/AuthContext.tsx';
 import { RequireAuth } from './auth/RequireAuth.tsx';
 import { AppShell } from './components/AppShell.tsx';
 import { BulletinBoardPage } from './pages/BulletinBoardPage.tsx';
+import { FollowersPage } from './pages/FollowersPage.tsx';
+import { FollowingPage } from './pages/FollowingPage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { PlazaPage } from './pages/PlazaPage.tsx';
 import { ProfileEditPage } from './pages/ProfileEditPage.tsx';
@@ -64,6 +66,22 @@ function App() {
                 element={
                   <RequireAuth>
                     <BulletinBoardPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/following"
+                element={
+                  <RequireAuth>
+                    <FollowingPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/followers"
+                element={
+                  <RequireAuth>
+                    <FollowersPage />
                   </RequireAuth>
                 }
               />

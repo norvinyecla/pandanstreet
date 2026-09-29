@@ -49,6 +49,7 @@ Before considering any task done, agents should run:
 - **Commit messages:** Conventional Commits style (`feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`, etc.)
 - **Committing:** Agents should ask the user before creating any commit. Propose the change, let the user review, then commit only after explicit confirmation.
 - **Pushing:** Never push without explicit confirmation.
+- **Pull requests:** Before opening a PR, update the `## Status` section of [README.md](README.md) to reflect current progress (e.g. which [PLAN.md](PLAN.md) phases are done), and include that change in the PR's branch.
 
 ## Data Model Notes
 
