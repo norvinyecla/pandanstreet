@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api, ApiError, resolveAssetUrl } from '../api/client.ts';
 import type { FollowUser, Tile, UserProfile } from '../api/types.ts';
 import { useAuth } from '../auth/AuthContext.tsx';
+import { ProfileAvatar } from '../components/ProfileAvatar.tsx';
 import { TileGrid } from '../components/TileGrid.tsx';
 import { useTilesVersion } from '../tiles/TilesVersionContext.ts';
 import { useToast } from '../toast/toastContext.ts';
@@ -99,18 +100,11 @@ export function ProfilePage() {
 
   return (
     <div className="flex flex-col items-center gap-4 pt-6">
-      {resolveAssetUrl(profile.photoUrl) ? (
-        <img
-          src={resolveAssetUrl(profile.photoUrl)}
-          alt={`${profile.name}'s profile photo`}
-          className="h-24 w-24 rounded-full bg-gray-100 object-cover"
-        />
-      ) : (
-        <div
-          aria-hidden="true"
-          className="h-24 w-24 rounded-full bg-gray-100"
-        />
-      )}
+      <ProfileAvatar
+        src={resolveAssetUrl(profile.photoUrl)}
+        name={profile.name}
+        size="lg"
+      />
       <h1 className="text-xl font-semibold text-gray-900">{profile.name}</h1>
       {profile.bio && (
         <p className="max-w-xs text-center text-sm text-gray-700">

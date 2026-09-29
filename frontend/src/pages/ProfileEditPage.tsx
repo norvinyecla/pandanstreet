@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError, resolveAssetUrl } from '../api/client.ts';
 import type { UserProfile } from '../api/types.ts';
 import { useAuth } from '../auth/AuthContext.tsx';
+import { ProfileAvatar } from '../components/ProfileAvatar.tsx';
 
 const BIO_MAX_LENGTH = 140;
 
@@ -62,8 +63,7 @@ export function ProfileEditPage() {
     }
   };
 
-  const previewSrc =
-    photoPreviewUrl ?? resolveAssetUrl(currentUser.photoUrl) ?? undefined;
+  const previewSrc = photoPreviewUrl ?? resolveAssetUrl(currentUser.photoUrl);
 
   return (
     <div className="flex flex-col gap-4 pt-6">
@@ -72,18 +72,7 @@ export function ProfileEditPage() {
       </h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col items-center gap-2">
-          {previewSrc ? (
-            <img
-              src={previewSrc}
-              alt={`${currentUser.name}'s profile photo`}
-              className="h-24 w-24 rounded-full bg-gray-100 object-cover"
-            />
-          ) : (
-            <div
-              aria-hidden="true"
-              className="h-24 w-24 rounded-full bg-gray-100"
-            />
-          )}
+          <ProfileAvatar src={previewSrc} name={currentUser.name} size="lg" />
           <label
             htmlFor="photo"
             className="min-h-11 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"

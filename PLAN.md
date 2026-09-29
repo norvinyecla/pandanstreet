@@ -110,6 +110,12 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
   - Sign-up page: username, display name, password fields, link to login
 - Tests: signup (success, duplicate username, validation), login (success, wrong password, unknown user), hashing round-trip, hash not exposed; Login/Sign-up page rendering and submission
 
+## Phase 13 — Default Profile Image
+
+- **Frontend only:** profiles without an uploaded photo show a default sprout avatar (inline SVG) instead of an empty grey circle; `photoUrl` stays empty in `users.csv` (no schema or backend change), so existing accounts get it too
+- Shared `ProfileAvatar` component renders either the uploaded photo or the default, used on the profile page, edit-profile page, and follow lists (Following, Followers, Plaza)
+- Tests: `ProfileAvatar` renders the photo with alt text when present, and the default avatar when not
+
 ## Out of Scope (for this prototype)
 
 - Dark mode
