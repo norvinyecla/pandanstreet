@@ -1,6 +1,8 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../api/client.ts';
 import type { Tile } from '../api/types.ts';
 import { TileGrid } from './TileGrid.tsx';
 
@@ -84,5 +86,82 @@ describe('TileGrid', () => {
     expect(
       screen.queryByRole('link', { name: /edit/i }),
     ).not.toBeInTheDocument();
+  });
+
+  const ownTiles: Tile[] = [
+    {
+      id: 't1',
+      userId: 'u1',
+      type: 'text',
+      createdAt: '2026-01-01',
+      text: 'Hello world',
+    },
+    {
+      id: 't2',
+      userId: 'u1',
+      type: 'item',
+      createdAt: '2026-01-02',
+      photoUrl: '/uploads/photo.png',
+      caption: 'A nice photo',
+      badgeColor: 'green',
+    },
+  ];
+
+  it('shows a delete button on both text and item tiles on the owner profile', () => {
+    render(<TileGrid tiles={ownTiles} isOwnProfile onDelete={vi.fn()} />, {
+      wrapper: MemoryRouter,
+    });
+
+    expect(screen.getAllByRole('button', { name: 'Delete' })).toHaveLength(2);
+  });
+
+  it('does not show delete buttons on another user profile', () => {
+    render(<TileGrid tiles={ownTiles} />, { wrapper: MemoryRouter });
+
+    expect(
+      screen.queryByRole('button', { name: 'Delete' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('asks for confirmation before deleting, and cancel keeps the tile', async () => {
+    const onDelete = vi.fn(() => Promise.resolve());
+    const user = userEvent.setup();
+    render(<TileGrid tiles={ownTiles} isOwnProfile onDelete={onDelete} />, {
+      wrapper: MemoryRouter,
+    });
+
+    await user.click(screen.getAllByRole('button', { name: 'Delete' })[1]);
+    expect(screen.getByText('Delete this post?')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByText('Delete this post?')).not.toBeInTheDocument();
+    expect(onDelete).not.toHaveBeenCalled();
+
+    await user.click(screen.getAllByRole('button', { name: 'Delete' })[1]);
+    const confirmRow = screen.getByText('Delete this post?').parentElement!;
+    await user.click(
+      within(confirmRow).getByRole('button', { name: 'Delete' }),
+    );
+    expect(onDelete).toHaveBeenCalledWith(ownTiles[1]);
+  });
+
+  it('shows an error on the tile when deleting fails', async () => {
+    const onDelete = vi.fn(() =>
+      Promise.reject(new ApiError('Tile not found', 404)),
+    );
+    const user = userEvent.setup();
+    render(<TileGrid tiles={ownTiles} isOwnProfile onDelete={onDelete} />, {
+      wrapper: MemoryRouter,
+    });
+
+    await user.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
+    const confirmRow = screen.getByText('Delete this post?').parentElement!;
+    await user.click(
+      within(confirmRow).getByRole('button', { name: 'Delete' }),
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Tile not found',
+    );
   });
 });

@@ -5,7 +5,9 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -109,5 +111,15 @@ export class TilesController {
     @Body() dto: UpdateTextTileDto,
   ): Promise<TileDto> {
     return this.tilesService.editText(id, userId, dto.text);
+  }
+
+  @UseGuards(SessionAuthGuard)
+  @HttpCode(204)
+  @Delete(':id')
+  archive(
+    @Param('id') id: string,
+    @CurrentUserId() userId: string,
+  ): Promise<void> {
+    return this.tilesService.archive(id, userId);
   }
 }

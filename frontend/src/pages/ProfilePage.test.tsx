@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '../auth/AuthContext.tsx';
 import { TilesVersionContext } from '../tiles/TilesVersionContext.ts';
+import { ToastProvider } from '../toast/ToastProvider.tsx';
 import { ProfilePage } from './ProfilePage.tsx';
 
 const me = {
@@ -100,6 +101,53 @@ describe('ProfilePage', () => {
       ).toBeInTheDocument(),
     );
     expect(screen.getByText('1 follower')).toBeInTheDocument();
+  });
+
+  it('deletes a tile after confirmation and confirms with a toast', async () => {
+    const deleted: string[] = [];
+    mockFetch({
+      '/auth/me': () => jsonResponse(me),
+      '/users/u1': () => jsonResponse(me),
+      '/tiles/u1': () =>
+        jsonResponse([
+          {
+            id: 't1',
+            userId: 'u1',
+            type: 'text',
+            createdAt: '2026-01-01',
+            text: 'goodbye tile',
+          },
+        ]),
+      'DELETE /tiles/t1': () => {
+        deleted.push('t1');
+        return Promise.resolve(new Response(null, { status: 204 }));
+      },
+    });
+
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <AuthProvider>
+          <ToastProvider>
+            <Routes>
+              <Route path="/" element={<ProfilePage />} />
+            </Routes>
+          </ToastProvider>
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText('goodbye tile')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    const confirmButtons = screen.getAllByRole('button', { name: 'Delete' });
+    await user.click(confirmButtons[confirmButtons.length - 1]);
+
+    await waitFor(() =>
+      expect(screen.queryByText('goodbye tile')).not.toBeInTheDocument(),
+    );
+    expect(deleted).toEqual(['t1']);
+    expect(screen.getByRole('status')).toHaveTextContent('Post deleted');
+    expect(screen.getByText(/no tiles yet/i)).toBeInTheDocument();
   });
 
   it('refetches tiles when a new tile is created elsewhere in the app', async () => {

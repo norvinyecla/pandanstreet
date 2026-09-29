@@ -5,6 +5,7 @@ import type { FollowUser, Tile, UserProfile } from '../api/types.ts';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { TileGrid } from '../components/TileGrid.tsx';
 import { useTilesVersion } from '../tiles/TilesVersionContext.ts';
+import { useToast } from '../toast/toastContext.ts';
 
 export function ProfilePage() {
   const { id } = useParams<{ id?: string }>();
@@ -12,6 +13,7 @@ export function ProfilePage() {
   const profileId = id ?? currentUser?.id;
   const isOwnProfile = !id || id === currentUser?.id;
   const tilesVersion = useTilesVersion();
+  const showToast = useToast();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [tiles, setTiles] = useState<Tile[]>([]);
@@ -76,6 +78,12 @@ export function ProfilePage() {
     }
   };
 
+  const handleDeleteTile = async (tile: Tile) => {
+    await api.delete<void>(`/tiles/${tile.id}`);
+    setTiles((prev) => prev.filter((t) => t.id !== tile.id));
+    showToast('Post deleted');
+  };
+
   if (error) {
     return <p className="text-center text-sm text-red-600">{error}</p>;
   }
@@ -130,7 +138,11 @@ export function ProfilePage() {
       )}
       <div className="w-full pt-2">
         <h2 className="pb-2 text-sm font-semibold text-gray-900">Tiles</h2>
-        <TileGrid tiles={tiles} isOwnProfile={isOwnProfile} />
+        <TileGrid
+          tiles={tiles}
+          isOwnProfile={isOwnProfile}
+          onDelete={isOwnProfile ? handleDeleteTile : undefined}
+        />
       </div>
     </div>
   );

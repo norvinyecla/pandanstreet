@@ -100,7 +100,7 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
 - Dark mode
 - OAuth / third-party login
 - Real database (Postgres, etc.)
-- Editing or deleting Item tiles
+- Editing Item tiles
 - Notifications, comments, likes, or any interaction beyond follow
 
 ## Open Items to Confirm Before Starting
