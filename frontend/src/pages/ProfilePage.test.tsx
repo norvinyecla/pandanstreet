@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '../auth/AuthContext.tsx';
+import { TilesVersionContext } from '../tiles/TilesVersionContext.ts';
 import { ProfilePage } from './ProfilePage.tsx';
 
 const me = {
@@ -81,7 +82,8 @@ describe('ProfilePage', () => {
       '/users/u2': () => jsonResponse(other),
       '/tiles/u2': () => jsonResponse([]),
       '/follows/u2/followers': () => jsonResponse([]),
-      'POST /follows/u2': () => Promise.resolve(new Response(null, { status: 204 })),
+      'POST /follows/u2': () =>
+        Promise.resolve(new Response(null, { status: 204 })),
     });
 
     const user = userEvent.setup();
@@ -99,6 +101,56 @@ describe('ProfilePage', () => {
     );
     expect(screen.getByText('1 follower')).toBeInTheDocument();
   });
+
+  it('refetches tiles when a new tile is created elsewhere in the app', async () => {
+    const tileFetches: number[] = [];
+    let tiles = [
+      {
+        id: 't1',
+        userId: 'u1',
+        type: 'text',
+        createdAt: '2026-01-01',
+        text: 'first tile',
+      },
+    ];
+    mockFetch({
+      '/auth/me': () => jsonResponse(me),
+      '/users/u1': () => jsonResponse(me),
+      '/tiles/u1': () => {
+        tileFetches.push(Date.now());
+        return jsonResponse(tiles);
+      },
+    });
+
+    const tree = (version: number) => (
+      <MemoryRouter initialEntries={['/']}>
+        <AuthProvider>
+          <TilesVersionContext.Provider value={version}>
+            <Routes>
+              <Route path="/" element={<ProfilePage />} />
+            </Routes>
+          </TilesVersionContext.Provider>
+        </AuthProvider>
+      </MemoryRouter>
+    );
+    const { rerender } = render(tree(0));
+    expect(await screen.findByText('first tile')).toBeInTheDocument();
+
+    tiles = [
+      ...tiles,
+      {
+        id: 't2',
+        userId: 'u1',
+        type: 'text',
+        createdAt: '2026-01-02',
+        text: 'second tile',
+      },
+    ];
+    rerender(tree(1));
+
+    expect(await screen.findByText('second tile')).toBeInTheDocument();
+    expect(tileFetches).toHaveLength(2);
+  });
 });
 
 function mockFetch(
@@ -112,7 +164,9 @@ function mockFetch(
       const path = new URL(url).pathname;
       const handler = handlers[methodKey] ?? handlers[path];
       if (!handler) {
-        return Promise.reject(new Error(`Unexpected fetch to ${method} ${url}`));
+        return Promise.reject(
+          new Error(`Unexpected fetch to ${method} ${url}`),
+        );
       }
       return handler(init);
     }),

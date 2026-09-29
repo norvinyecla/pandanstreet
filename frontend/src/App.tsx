@@ -8,7 +8,6 @@ import { PlazaPage } from './pages/PlazaPage.tsx';
 import { ProfileEditPage } from './pages/ProfileEditPage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
 import { ShoutoutsPage } from './pages/ShoutoutsPage.tsx';
-import { TileCreatePage } from './pages/TileCreatePage.tsx';
 import { TileEditPage } from './pages/TileEditPage.tsx';
 
 function App() {
@@ -39,14 +38,6 @@ function App() {
               element={
                 <RequireAuth>
                   <ProfilePage />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/tiles/new"
-              element={
-                <RequireAuth>
-                  <TileCreatePage />
                 </RequireAuth>
               }
             />

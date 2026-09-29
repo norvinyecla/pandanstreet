@@ -68,6 +68,7 @@ A minimal, mobile-first social media app. Users log in, build a small profile, a
 
 - Mobile-first, portrait-oriented layouts
 - Minimal UI — light mode only for the prototype
+- Tiles are added from a plain "+" button in the middle of the bottom nav bar. It opens a half-screen pane (fast CSS slide-up) that stays on the current page: choose Text or Item, fill in the form, and the pane closes on post
 - Tile creation forms adapt to type:
   - Text type → text box (140 char limit, live counter)
   - Item type → file upload + caption text box + badge select box

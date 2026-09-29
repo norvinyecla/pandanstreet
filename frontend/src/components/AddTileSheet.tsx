@@ -1,8 +1,13 @@
-import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react';
 import { api, ApiError } from '../api/client.ts';
 import type { BadgeColor, Tile } from '../api/types.ts';
-import { BADGE_MESSAGES, BadgeLozenge } from '../components/TileGrid.tsx';
+import { BADGE_MESSAGES, BadgeLozenge } from './TileGrid.tsx';
 
 const TEXT_MAX_LENGTH = 140;
 const CAPTION_MAX_LENGTH = 140;
@@ -12,12 +17,23 @@ const BADGE_COLORS: BadgeColor[] = ['red', 'yellow', 'green'];
 
 type TileType = 'text' | 'item';
 
-function TypeSelector({ onSelect }: { onSelect: (type: TileType) => void }) {
+const SHEET_TITLE_ID = 'add-tile-sheet-title';
+
+function TypeSelector({
+  onSelect,
+  onCancel,
+}: {
+  onSelect: (type: TileType) => void;
+  onCancel: () => void;
+}) {
   return (
-    <div className="flex flex-col gap-4 pt-6">
-      <h1 className="text-center text-xl font-semibold text-gray-900">
+    <div className="flex flex-col gap-4">
+      <h2
+        id={SHEET_TITLE_ID}
+        className="text-center text-xl font-semibold text-gray-900"
+      >
         New tile
-      </h1>
+      </h2>
       <p className="text-center text-sm text-gray-600">
         Choose a tile type to get started.
       </p>
@@ -43,18 +59,24 @@ function TypeSelector({ onSelect }: { onSelect: (type: TileType) => void }) {
           </span>
         </button>
       </div>
-      <Link
-        to="/"
-        className="text-center text-sm font-medium text-gray-700 underline"
+      <button
+        type="button"
+        onClick={onCancel}
+        className="min-h-11 text-center text-sm font-medium text-gray-700 underline"
       >
         Cancel
-      </Link>
+      </button>
     </div>
   );
 }
 
-function TextTileForm({ onBack }: { onBack: () => void }) {
-  const navigate = useNavigate();
+function TextTileForm({
+  onBack,
+  onCreated,
+}: {
+  onBack: () => void;
+  onCreated: () => void;
+}) {
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -74,7 +96,7 @@ function TextTileForm({ onBack }: { onBack: () => void }) {
     setIsSubmitting(true);
     try {
       await api.post<Tile>('/tiles/text', { text: trimmed });
-      navigate('/');
+      onCreated();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : 'Could not create tile.',
@@ -85,10 +107,13 @@ function TextTileForm({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-6">
-      <h1 className="text-center text-xl font-semibold text-gray-900">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <h2
+        id={SHEET_TITLE_ID}
+        className="text-center text-xl font-semibold text-gray-900"
+      >
         New text tile
-      </h1>
+      </h2>
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between">
           <label htmlFor="text" className="text-sm font-medium text-gray-700">
@@ -123,7 +148,7 @@ function TextTileForm({ onBack }: { onBack: () => void }) {
       <button
         type="button"
         onClick={onBack}
-        className="text-center text-sm font-medium text-gray-700 underline"
+        className="min-h-11 text-center text-sm font-medium text-gray-700 underline"
       >
         Back
       </button>
@@ -131,8 +156,13 @@ function TextTileForm({ onBack }: { onBack: () => void }) {
   );
 }
 
-function ItemTileForm({ onBack }: { onBack: () => void }) {
-  const navigate = useNavigate();
+function ItemTileForm({
+  onBack,
+  onCreated,
+}: {
+  onBack: () => void;
+  onCreated: () => void;
+}) {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
@@ -195,7 +225,7 @@ function ItemTileForm({ onBack }: { onBack: () => void }) {
       formData.append('caption', trimmedCaption);
       formData.append('badgeColor', badgeColor);
       await api.postForm<Tile>('/tiles/item', formData);
-      navigate('/');
+      onCreated();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : 'Could not create tile.',
@@ -206,10 +236,13 @@ function ItemTileForm({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-6">
-      <h1 className="text-center text-xl font-semibold text-gray-900">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <h2
+        id={SHEET_TITLE_ID}
+        className="text-center text-xl font-semibold text-gray-900"
+      >
         New item tile
-      </h1>
+      </h2>
       <div className="flex flex-col items-center gap-2">
         {photoPreviewUrl && (
           <img
@@ -256,7 +289,10 @@ function ItemTileForm({ onBack }: { onBack: () => void }) {
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor="badgeColor" className="text-sm font-medium text-gray-700">
+        <label
+          htmlFor="badgeColor"
+          className="text-sm font-medium text-gray-700"
+        >
           Badge
         </label>
         <select
@@ -268,7 +304,8 @@ function ItemTileForm({ onBack }: { onBack: () => void }) {
         >
           {BADGE_COLORS.map((color) => (
             <option key={color} value={color}>
-              {color[0].toUpperCase() + color.slice(1)} — {BADGE_MESSAGES[color]}
+              {color[0].toUpperCase() + color.slice(1)} —{' '}
+              {BADGE_MESSAGES[color]}
             </option>
           ))}
         </select>
@@ -291,7 +328,7 @@ function ItemTileForm({ onBack }: { onBack: () => void }) {
       <button
         type="button"
         onClick={onBack}
-        className="text-center text-sm font-medium text-gray-700 underline"
+        className="min-h-11 text-center text-sm font-medium text-gray-700 underline"
       >
         Back
       </button>
@@ -299,14 +336,61 @@ function ItemTileForm({ onBack }: { onBack: () => void }) {
   );
 }
 
-export function TileCreatePage() {
+/** Half-height bottom sheet for creating a tile without leaving the current page. */
+export function AddTileSheet({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+}) {
   const [type, setType] = useState<TileType | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
-  if (type === null) {
-    return <TypeSelector onSelect={setType} />;
-  }
-  if (type === 'text') {
-    return <TextTileForm onBack={() => setType(null)} />;
-  }
-  return <ItemTileForm onBack={() => setType(null)} />;
+  useEffect(() => {
+    panelRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  const handleCreated = () => {
+    onCreated();
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={onClose}
+        className="absolute inset-0 h-full w-full cursor-default bg-black/30"
+      />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={SHEET_TITLE_ID}
+        tabIndex={-1}
+        className="absolute inset-x-0 bottom-0 mx-auto h-[50svh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white px-4 pt-5 pb-6 shadow-lg focus:outline-none motion-safe:animate-slide-up"
+      >
+        {type === null ? (
+          <TypeSelector onSelect={setType} onCancel={onClose} />
+        ) : type === 'text' ? (
+          <TextTileForm
+            onBack={() => setType(null)}
+            onCreated={handleCreated}
+          />
+        ) : (
+          <ItemTileForm
+            onBack={() => setType(null)}
+            onCreated={handleCreated}
+          />
+        )}
+      </div>
+    </div>
+  );
 }

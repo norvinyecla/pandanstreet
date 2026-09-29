@@ -4,12 +4,14 @@ import { api, ApiError, resolveAssetUrl } from '../api/client.ts';
 import type { FollowUser, Tile, UserProfile } from '../api/types.ts';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { TileGrid } from '../components/TileGrid.tsx';
+import { useTilesVersion } from '../tiles/TilesVersionContext.ts';
 
 export function ProfilePage() {
   const { id } = useParams<{ id?: string }>();
   const { currentUser } = useAuth();
   const profileId = id ?? currentUser?.id;
   const isOwnProfile = !id || id === currentUser?.id;
+  const tilesVersion = useTilesVersion();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [tiles, setTiles] = useState<Tile[]>([]);
@@ -48,7 +50,7 @@ export function ProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [profileId, isOwnProfile, currentUser?.id]);
+  }, [profileId, isOwnProfile, currentUser?.id, tilesVersion]);
 
   const handleToggleFollow = async () => {
     if (!profile) return;
@@ -68,9 +70,7 @@ export function ProfilePage() {
         );
       }
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : 'Something went wrong.',
-      );
+      setError(err instanceof ApiError ? err.message : 'Something went wrong.');
     } finally {
       setIsFollowActionPending(false);
     }
@@ -129,17 +129,7 @@ export function ProfilePage() {
         </button>
       )}
       <div className="w-full pt-2">
-        <div className="flex items-center justify-between pb-2">
-          <h2 className="text-sm font-semibold text-gray-900">Tiles</h2>
-          {isOwnProfile && (
-            <Link
-              to="/tiles/new"
-              className="min-h-11 rounded-md border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700"
-            >
-              Add tile
-            </Link>
-          )}
-        </div>
+        <h2 className="pb-2 text-sm font-semibold text-gray-900">Tiles</h2>
         <TileGrid tiles={tiles} isOwnProfile={isOwnProfile} />
       </div>
     </div>

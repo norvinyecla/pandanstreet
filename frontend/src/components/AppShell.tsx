@@ -1,11 +1,22 @@
-import type { ReactNode } from 'react';
+import { useCallback, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.tsx';
+import { TilesVersionContext } from '../tiles/TilesVersionContext.ts';
+import { AddTileSheet } from './AddTileSheet.tsx';
 import { BottomNav } from './BottomNav.tsx';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
+  const [isAddTileOpen, setIsAddTileOpen] = useState(false);
+  const [tilesVersion, setTilesVersion] = useState(0);
+
+  const openAddTile = useCallback(() => setIsAddTileOpen(true), []);
+  const closeAddTile = useCallback(() => setIsAddTileOpen(false), []);
+  const handleTileCreated = useCallback(
+    () => setTilesVersion((version) => version + 1),
+    [],
+  );
 
   const handleLogout = async () => {
     await logout();
@@ -29,9 +40,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
       </header>
       <main className={`flex-1 px-4 py-4 ${currentUser ? 'pb-20' : ''}`}>
-        {children}
+        <TilesVersionContext.Provider value={tilesVersion}>
+          {children}
+        </TilesVersionContext.Provider>
       </main>
-      {currentUser && <BottomNav />}
+      {currentUser && <BottomNav onAddTile={openAddTile} />}
+      {currentUser && isAddTileOpen && (
+        <AddTileSheet onClose={closeAddTile} onCreated={handleTileCreated} />
+      )}
     </div>
   );
 }

@@ -8,3 +8,16 @@ body {
   margin: 0;
   background-color: #fff;
 }
+
+@theme {
+  --animate-slide-up: slide-up 150ms ease-out;
+
+  @keyframes slide-up {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+}
