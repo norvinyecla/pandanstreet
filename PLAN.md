@@ -81,28 +81,32 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
   - Plaza discovery: users the current user does **not** follow (regardless of whether they follow the current user) who authored an active Text tile, or an active Item tile with `badgeColor` green or yellow, within the last 24 hours; randomly sample up to 3 of them; requires at least 2 qualifying candidates to return a result, otherwise returns empty
 - Tests: feed ordering and caps (20 / 21), following/follower list endpoints, Plaza filtering (24h window, badge color, excludes already-followed, minimum-2 threshold, sampling up to 3)
 
-## Phase 10 — Frontend: Social Discovery Pages
+## Phase 10 — Frontend: Feeds
 
 - **Shout-outs** page: reverse-chronological list of Text tiles from followed profiles (max 20)
 - **Bulletin Board** page: 3-column grid of Item tiles from followed profiles, scrollable, max 21 tiles
+- Routing/nav entries for Shout-outs, Bulletin Board, and Plaza (Plaza entry can point to a placeholder route until Phase 11)
+- Tests for each new page's rendering and caps/limits
+
+## Phase 11 — Frontend: Follow Management & Plaza
+
 - **Following** page: list of followed profiles, each with an "Unfollow" button; the "Following" count on the user's own profile links here
 - **Followers** page: read-only list of profiles following the user; the "Followers" count on the user's own profile links here
 - **Plaza** page: shows the 2–3 randomly-selected discoverable profiles with a Follow button on each; empty state when fewer than 2 candidates qualify
-- Routing/nav entries for Shout-outs, Bulletin Board, and Plaza; Following/Followers reached via the profile count links
-- Tests for each new page's rendering, caps/limits, and the unfollow/follow interactions
+- Tests for each new page's rendering, empty states, and the unfollow/follow interactions
 
 ## Out of Scope (for this prototype)
 
 - Dark mode
 - OAuth / third-party login
 - Real database (Postgres, etc.)
-- Editing or deleting Item tiles
+- Editing Item tiles
 - Notifications, comments, likes, or any interaction beyond follow
 
 ## Open Items to Confirm Before Starting
 
 - None currently — proceed per README.md and AGENTS.md decisions. Any new ambiguity found during implementation will be raised before proceeding, per AGENTS.md.
-- Phase 9/10 decisions (confirmed with the user):
+- Phase 9–11 decisions (confirmed with the user):
   - Following/Followers pages show only the **current logged-in user's** own lists (not viewable for other profiles)
   - Plaza's candidates are re-randomized on each page visit/load (no persistence of a prior selection)
   - Plaza requires **at least 2** qualifying candidates to display; if 0 or 1 qualify, show an empty state instead. When 2 or 3 qualify, show all of them (up to 3)

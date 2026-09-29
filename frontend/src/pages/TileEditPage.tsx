@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError } from '../api/client.ts';
 import type { Tile } from '../api/types.ts';
 import { useAuth } from '../auth/AuthContext.tsx';
+import { useToast } from '../toast/toastContext.ts';
 
 const TEXT_MAX_LENGTH = 140;
 
@@ -14,6 +15,7 @@ export function TileEditPage() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();
+  const showToast = useToast();
   const { currentUser } = useAuth();
 
   const initialText = (location.state as LocationState | null)?.text;
@@ -51,6 +53,15 @@ export function TileEditPage() {
     };
   }, [id, initialText, currentUser]);
 
+  useEffect(() => {
+    if (isSubmitting) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') navigate('/');
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isSubmitting, navigate]);
+
   if (!id) return null;
 
   const handleSubmit = async (event: FormEvent) => {
@@ -68,11 +79,10 @@ export function TileEditPage() {
     setIsSubmitting(true);
     try {
       await api.patch<Tile>(`/tiles/${id}`, { text: trimmed });
+      showToast('Post updated');
       navigate('/');
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : 'Could not save tile.',
-      );
+      setError(err instanceof ApiError ? err.message : 'Could not save tile.');
     } finally {
       setIsSubmitting(false);
     }

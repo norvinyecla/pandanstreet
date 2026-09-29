@@ -144,6 +144,44 @@ describe('TilesService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('archive hides a text or item tile but keeps its row', async () => {
+    const alice = await usersService.create('Alice');
+    const text = await service.createText(alice.id, 'Hello');
+    const item = await service.createItem(alice.id, '/uploads/p.jpg', 'Photo', 'red');
+
+    await service.archive(text.id, alice.id);
+    await service.archive(item.id, alice.id);
+
+    expect(await service.getActiveTiles(alice.id)).toEqual([]);
+    const rows = await stores.tiles.readAll();
+    expect(rows).toHaveLength(2);
+    expect(rows.every((row) => row.archived)).toBe(true);
+  });
+
+  it("archive throws ForbiddenException for another user's tile", async () => {
+    const alice = await usersService.create('Alice');
+    const bob = await usersService.create('Bob');
+    const tile = await service.createText(alice.id, 'Hello');
+
+    await expect(service.archive(tile.id, bob.id)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(await service.getActiveTiles(alice.id)).toHaveLength(1);
+  });
+
+  it('archive throws NotFoundException for an unknown or already archived tile', async () => {
+    const alice = await usersService.create('Alice');
+    const tile = await service.createText(alice.id, 'Hello');
+    await service.archive(tile.id, alice.id);
+
+    await expect(service.archive(tile.id, alice.id)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    await expect(service.archive('missing', alice.id)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
   it('getShoutouts returns Text tiles from followed profiles, most recent first', async () => {
     const alice = await usersService.create('Alice');
     const bob = await usersService.create('Bob');

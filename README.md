@@ -68,6 +68,7 @@ A minimal, mobile-first social media app. Users log in, build a small profile, a
 
 - Mobile-first, portrait-oriented layouts
 - Minimal UI — light mode only for the prototype
+- Tiles are added from a plain "+" button in the middle of the bottom nav bar. It opens a half-screen pane (fast CSS slide-up) that stays on the current page: choose Text or Item, fill in the form, and the pane closes on post
 - Tile creation forms adapt to type:
   - Text type → text box (140 char limit, live counter)
   - Item type → file upload + caption text box + badge select box
@@ -79,6 +80,7 @@ A minimal, mobile-first social media app. Users log in, build a small profile, a
 - **Archived tiles:** marked inactive/hidden, not deleted — kept in `tiles.csv` with `archived = true`.
 - **Photo storage:** uploaded photos are saved to local disk; the file path is referenced in the CSV (since CSVs can't hold binary data).
 - **Editing tiles:** only **Text** tiles can be edited after creation (text content can be updated in place). **Item** tiles are immutable once created — to change one, the user creates a new tile (which may archive the oldest).
+- **Deleting tiles:** owners can delete any of their own tiles (Text or Item) from their profile, after a confirmation prompt. Deleting archives the tile (`archived = true`) rather than removing the row, so it disappears from the profile and feeds.
 - No dark mode for the prototype.
 
 ## Status

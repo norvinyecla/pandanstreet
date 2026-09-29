@@ -93,6 +93,21 @@ export class TilesService {
     return { id: tile.id, userId, type: 'text', createdAt: tile.createdAt, text };
   }
 
+  /** Removes a tile from view by archiving it; the row is kept, per the data model rules. */
+  async archive(tileId: string, userId: string): Promise<void> {
+    const tiles = await this.stores.tiles.readAll();
+    const tile = tiles.find((t) => t.id === tileId);
+    if (!tile || tile.archived) throw new NotFoundException('Tile not found');
+    if (tile.userId !== userId) {
+      throw new ForbiddenException("Cannot delete another user's tile");
+    }
+
+    await this.stores.tiles.update(
+      (record) => record.id === tileId,
+      (record): TileRecord => ({ ...record, archived: true }),
+    );
+  }
+
   async getActiveTiles(userId: string): Promise<TileDto[]> {
     await this.ensureUserExists(userId);
 

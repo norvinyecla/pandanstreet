@@ -34,3 +34,25 @@ export interface ItemTile {
 }
 
 export type Tile = TextTile | ItemTile;
+
+export interface FeedAuthor {
+  id: string;
+  name: string;
+  photoUrl: string;
+}
+
+export interface Shoutout {
+  id: string;
+  createdAt: string;
+  text: string;
+  author: FeedAuthor;
+}
+
+export interface BulletinItem {
+  id: string;
+  createdAt: string;
+  photoUrl: string;
+  caption: string;
+  badgeColor: BadgeColor;
+  author: FeedAuthor;
+}
