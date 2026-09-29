@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.tsx';
+import { BottomNav } from './BottomNav.tsx';
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { currentUser, logout } = useAuth();
@@ -27,7 +28,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         )}
       </header>
-      <main className="flex-1 px-4 py-4">{children}</main>
+      <main className={`flex-1 px-4 py-4 ${currentUser ? 'pb-20' : ''}`}>
+        {children}
+      </main>
+      {currentUser && <BottomNav />}
     </div>
   );
 }

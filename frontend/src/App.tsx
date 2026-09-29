@@ -2,9 +2,12 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext.tsx';
 import { RequireAuth } from './auth/RequireAuth.tsx';
 import { AppShell } from './components/AppShell.tsx';
+import { BulletinBoardPage } from './pages/BulletinBoardPage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
+import { PlazaPage } from './pages/PlazaPage.tsx';
 import { ProfileEditPage } from './pages/ProfileEditPage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
+import { ShoutoutsPage } from './pages/ShoutoutsPage.tsx';
 import { TileCreatePage } from './pages/TileCreatePage.tsx';
 import { TileEditPage } from './pages/TileEditPage.tsx';
 
@@ -52,6 +55,30 @@ function App() {
               element={
                 <RequireAuth>
                   <TileEditPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/shoutouts"
+              element={
+                <RequireAuth>
+                  <ShoutoutsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/bulletin-board"
+              element={
+                <RequireAuth>
+                  <BulletinBoardPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/plaza"
+              element={
+                <RequireAuth>
+                  <PlazaPage />
                 </RequireAuth>
               }
             />
