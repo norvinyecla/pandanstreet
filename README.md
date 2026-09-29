@@ -85,4 +85,7 @@ A minimal, mobile-first social media app. Users log in, build a small profile, a
 
 ## Status
 
-Prototype planning stage — implementation not yet started.
+Prototype feature-complete per [PLAN.md](PLAN.md) — Phases 0–11 implemented:
+
+- **Backend:** CSV data layer, session login, profiles (bio, photo upload), follows, Text/Item tiles (create, edit Text, archive), Shout-outs and Bulletin Board feeds, Plaza discovery.
+- **Frontend:** login, profile view/edit, tile creation/editing/deletion, Shout-outs, Bulletin Board, Following/Followers pages, and Plaza.
