@@ -8,7 +8,7 @@ import {
 import { api, ApiError } from '../api/client.ts';
 import type { BadgeColor, Tile } from '../api/types.ts';
 import { useToast } from '../toast/toastContext.ts';
-import { BADGE_MESSAGES, BadgeLozenge } from './TileGrid.tsx';
+import { BADGE_MESSAGES } from './TileGrid.tsx';
 
 const TEXT_MAX_LENGTH = 140;
 const CAPTION_MAX_LENGTH = 140;
@@ -168,6 +168,7 @@ function ItemTileForm({
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [badgeColor, setBadgeColor] = useState<BadgeColor>('red');
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -188,18 +189,18 @@ function ItemTileForm({
       return;
     }
     if (!ALLOWED_PHOTO_TYPES.includes(file.type)) {
-      setError('Photo must be a jpg, png, or webp file.');
+      setPhotoError('Photo must be a jpg, png, or webp file.');
       setPhotoFile(null);
       event.target.value = '';
       return;
     }
     if (file.size > MAX_PHOTO_BYTES) {
-      setError('Photo must be 5MB or smaller.');
+      setPhotoError('Photo must be 5MB or smaller.');
       setPhotoFile(null);
       event.target.value = '';
       return;
     }
-    setError(null);
+    setPhotoError(null);
     setPhotoFile(file);
   };
 
@@ -207,7 +208,7 @@ function ItemTileForm({
     event.preventDefault();
     setError(null);
     if (!photoFile) {
-      setError('Please choose a photo.');
+      setPhotoError('Please add a photo.');
       return;
     }
     const trimmedCaption = caption.trim();
@@ -244,74 +245,124 @@ function ItemTileForm({
       >
         New item tile
       </h2>
-      <div className="flex flex-col items-center gap-2">
-        {photoPreviewUrl && (
-          <img
-            src={photoPreviewUrl}
-            alt="Selected photo preview"
-            className="aspect-square w-full rounded-md bg-gray-100 object-cover"
+      <div className="flex gap-3">
+        <div className="flex w-28 shrink-0 flex-col gap-1">
+          <input
+            id="photo"
+            name="photo"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            aria-label={photoFile ? 'Change photo' : 'Add photo'}
+            aria-describedby={photoError ? 'photo-error' : 'photo-hint'}
+            aria-invalid={photoError ? true : undefined}
+            onChange={handlePhotoChange}
+            className="peer sr-only"
           />
-        )}
-        <label
-          htmlFor="photo"
-          className="min-h-11 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
-        >
-          {photoFile ? 'Change photo' : 'Choose photo'}
-        </label>
-        <input
-          id="photo"
-          name="photo"
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          onChange={handlePhotoChange}
-          className="sr-only"
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between">
           <label
-            htmlFor="caption"
-            className="text-sm font-medium text-gray-700"
+            htmlFor="photo"
+            className={`relative flex aspect-square w-full cursor-pointer flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border-2 text-gray-500 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-gray-900 peer-focus-visible:ring-offset-2 active:border-gray-500 ${
+              photoPreviewUrl
+                ? 'border-transparent'
+                : photoError
+                  ? 'border-dashed border-red-400 bg-red-50'
+                  : 'border-dashed border-gray-300 bg-gray-50 hover:border-gray-400'
+            }`}
           >
-            Caption
+            {photoPreviewUrl ? (
+              <>
+                <img
+                  src={photoPreviewUrl}
+                  alt="Selected photo preview"
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+                <span className="absolute right-1.5 bottom-1.5 rounded-full bg-black/60 px-2 py-0.5 text-xs font-medium text-white">
+                  Change
+                </span>
+              </>
+            ) : (
+              <>
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-7 w-7"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="3" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <path d="m21 15-5-5L5 21" />
+                </svg>
+                <span className="text-xs font-medium">Add photo</span>
+              </>
+            )}
           </label>
-          <span className="text-xs text-gray-500">
-            {caption.length}/{CAPTION_MAX_LENGTH}
-          </span>
+          {photoError ? (
+            <p
+              id="photo-error"
+              role="alert"
+              className="text-center text-xs leading-tight text-red-600"
+            >
+              {photoError}
+            </p>
+          ) : (
+            <p
+              id="photo-hint"
+              className="text-center text-xs leading-tight text-gray-500"
+            >
+              JPG, PNG or WebP, up to 5MB
+            </p>
+          )}
         </div>
-        <input
-          id="caption"
-          name="caption"
-          type="text"
-          maxLength={CAPTION_MAX_LENGTH}
-          value={caption}
-          onChange={(event) => setCaption(event.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-base text-gray-900 focus:border-gray-500 focus:outline-none"
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label
-          htmlFor="badgeColor"
-          className="text-sm font-medium text-gray-700"
-        >
-          Badge
-        </label>
-        <select
-          id="badgeColor"
-          name="badgeColor"
-          value={badgeColor}
-          onChange={(event) => setBadgeColor(event.target.value as BadgeColor)}
-          className="min-h-11 rounded-md border border-gray-300 px-3 py-2 text-base text-gray-900 focus:border-gray-500 focus:outline-none"
-        >
-          {BADGE_COLORS.map((color) => (
-            <option key={color} value={color}>
-              {color[0].toUpperCase() + color.slice(1)} —{' '}
-              {BADGE_MESSAGES[color]}
-            </option>
-          ))}
-        </select>
-        <div className="pt-1">
-          <BadgeLozenge color={badgeColor} />
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="caption"
+                className="text-sm font-medium text-gray-700"
+              >
+                Caption
+              </label>
+              <span className="text-xs text-gray-500">
+                {caption.length}/{CAPTION_MAX_LENGTH}
+              </span>
+            </div>
+            <input
+              id="caption"
+              name="caption"
+              type="text"
+              maxLength={CAPTION_MAX_LENGTH}
+              value={caption}
+              onChange={(event) => setCaption(event.target.value)}
+              className="rounded-md border border-gray-300 px-3 py-2 text-base text-gray-900 focus:border-gray-500 focus:outline-none"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="badgeColor"
+              className="text-sm font-medium text-gray-700"
+            >
+              Badge
+            </label>
+            <select
+              id="badgeColor"
+              name="badgeColor"
+              value={badgeColor}
+              onChange={(event) =>
+                setBadgeColor(event.target.value as BadgeColor)
+              }
+              className="min-h-11 rounded-md border border-gray-300 px-3 py-2 text-base text-gray-900 focus:border-gray-500 focus:outline-none"
+            >
+              {BADGE_COLORS.map((color) => (
+                <option key={color} value={color}>
+                  {color[0].toUpperCase() + color.slice(1)} —{' '}
+                  {BADGE_MESSAGES[color]}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
       {error && (
