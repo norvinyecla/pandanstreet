@@ -69,7 +69,12 @@ describe('BulletinBoardPage', () => {
           JSON.stringify([
             {
               ...makeItem(1),
-              author: { id: 'u3', name: 'Ada', photoUrl: '/uploads/ada.png' },
+              author: {
+                id: 'u3',
+                username: 'ada',
+                name: 'Ada',
+                photoUrl: '/uploads/ada.png',
+              },
             },
           ]),
         ),
@@ -84,7 +89,7 @@ describe('BulletinBoardPage', () => {
       'http://localhost:3001/uploads/ada.png',
     );
     const link = avatar.closest('a');
-    expect(link).toHaveAttribute('href', '/users/u3');
+    expect(link).toHaveAttribute('href', '/users/ada');
     expect(link).toHaveTextContent('Ada');
     expect(link).toHaveClass('min-h-11');
   });
@@ -95,7 +100,7 @@ describe('BulletinBoardPage', () => {
     renderPage();
 
     const link = await screen.findByRole('link', { name: 'Grace' });
-    expect(link).toHaveAttribute('href', '/users/u2');
+    expect(link).toHaveAttribute('href', '/users/grace');
     expect(within(link).getByTestId('default-avatar')).toBeInTheDocument();
   });
 
@@ -232,7 +237,7 @@ describe('BulletinBoardPage', () => {
       const link = within(screen.getByRole('dialog')).getByRole('link', {
         name: 'Ada',
       });
-      expect(link).toHaveAttribute('href', '/users/u3');
+      expect(link).toHaveAttribute('href', '/users/ada');
       expect(link).toHaveClass('min-h-11');
       expect(within(link).getByTestId('default-avatar')).toBeInTheDocument();
     });
