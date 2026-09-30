@@ -15,7 +15,7 @@ function makeItem(index: number): BulletinItem {
     photoUrl: `/uploads/${index}.png`,
     caption: `Item ${index}`,
     badgeColor: 'green',
-    author: { id: 'u2', name: 'Grace', photoUrl: '' },
+    author: { id: 'u2', username: 'grace', name: 'Grace', photoUrl: '' },
   };
 }
 
@@ -55,7 +55,7 @@ describe('BulletinBoardPage', () => {
     expect(screen.getByText('Hello!')).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Grace' })[0]).toHaveAttribute(
       'href',
-      '/users/u2',
+      '/users/grace',
     );
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
       'http://localhost:3001/tiles/feed/bulletin-board',
@@ -186,7 +186,12 @@ describe('BulletinBoardPage', () => {
                   Date.now() - 2 * 60 * 60 * 1000,
                 ).toISOString(),
                 badgeColor: 'red',
-                author: { id: 'u3', name: 'Ada', photoUrl: '' },
+                author: {
+                  id: 'u3',
+                  username: 'ada',
+                  name: 'Ada',
+                  photoUrl: '',
+                },
               },
             ]),
           ),
@@ -214,7 +219,7 @@ describe('BulletinBoardPage', () => {
       expect(age.tagName).toBe('TIME');
       expect(within(dialog).getByRole('link', { name: 'Ada' })).toHaveAttribute(
         'href',
-        '/users/u3',
+        '/users/ada',
       );
       expect(
         within(dialog).getByRole('button', { name: 'Close' }),

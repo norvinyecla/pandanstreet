@@ -7,6 +7,7 @@ import { LoginPage } from './LoginPage.tsx';
 
 const profile = {
   id: 'u1',
+  username: 'ada',
   name: 'Ada',
   photoUrl: '',
   followerCount: 0,

@@ -9,6 +9,7 @@ import { ProfilePage } from './ProfilePage.tsx';
 
 const me = {
   id: 'u1',
+  username: 'ada',
   name: 'Ada',
   photoUrl: '',
   bio: 'Building things.',
@@ -18,6 +19,7 @@ const me = {
 
 const other = {
   id: 'u2',
+  username: 'grace',
   name: 'Grace',
   photoUrl: '',
   bio: '',
@@ -35,7 +37,7 @@ function renderProfilePage(initialPath: string) {
       <AuthProvider>
         <Routes>
           <Route path="/" element={<ProfilePage />} />
-          <Route path="/users/:id" element={<ProfilePage />} />
+          <Route path="/users/:username" element={<ProfilePage />} />
           <Route path="/profile/edit" element={<p>Edit page</p>} />
         </Routes>
       </AuthProvider>
@@ -67,6 +69,7 @@ describe('ProfilePage', () => {
     renderProfilePage('/');
 
     expect(await screen.findByText('Ada')).toBeInTheDocument();
+    expect(screen.getByText('@ada')).toBeInTheDocument();
     expect(screen.getByText('Building things.')).toBeInTheDocument();
     expect(screen.getByText('hello world')).toBeInTheDocument();
     expect(
@@ -88,7 +91,7 @@ describe('ProfilePage', () => {
   it('shows a follow button for another user and toggles it on click', async () => {
     mockFetch({
       '/auth/me': () => jsonResponse(me),
-      '/users/u2': () => jsonResponse(other),
+      '/users/by-username/grace': () => jsonResponse(other),
       '/tiles/u2': () => jsonResponse([]),
       '/follows/u2/followers': () => jsonResponse([]),
       'POST /follows/u2': () =>
@@ -96,7 +99,7 @@ describe('ProfilePage', () => {
     });
 
     const user = userEvent.setup();
-    renderProfilePage('/users/u2');
+    renderProfilePage('/users/grace');
 
     const followButton = await screen.findByRole('button', {
       name: /^follow$/i,
@@ -112,6 +115,64 @@ describe('ProfilePage', () => {
       ).toBeInTheDocument(),
     );
     expect(screen.getByText('1 follower')).toBeInTheDocument();
+  });
+
+  it("loads another user's profile by the username in the URL", async () => {
+    mockFetch({
+      '/auth/me': () => jsonResponse(me),
+      '/users/by-username/grace': () => jsonResponse(other),
+      '/tiles/u2': () =>
+        jsonResponse([
+          {
+            id: 't2',
+            userId: 'u2',
+            type: 'text',
+            createdAt: '2026-01-01',
+            text: 'from grace',
+          },
+        ]),
+      '/follows/u2/followers': () => jsonResponse([]),
+    });
+
+    renderProfilePage('/users/grace');
+
+    expect(
+      await screen.findByRole('heading', { name: 'Grace' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('@grace')).toBeInTheDocument();
+    expect(screen.getByText('from grace')).toBeInTheDocument();
+  });
+
+  it('treats its own username in the URL as the own profile', async () => {
+    mockFetch({
+      '/auth/me': () => jsonResponse(me),
+      '/users/u1': () => jsonResponse(me),
+      '/tiles/u1': () => jsonResponse([]),
+    });
+
+    renderProfilePage('/users/ada');
+
+    expect(
+      await screen.findByRole('link', { name: /edit profile/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /follow/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows an error for an unknown username', async () => {
+    mockFetch({
+      '/auth/me': () => jsonResponse(me),
+      '/users/by-username/nobody': () =>
+        jsonResponse(
+          { statusCode: 404, message: 'User not found', error: 'Not Found' },
+          404,
+        ),
+    });
+
+    renderProfilePage('/users/nobody');
+
+    expect(await screen.findByText('User not found')).toBeInTheDocument();
   });
 
   it('deletes a tile after confirmation and confirms with a toast', async () => {
@@ -253,7 +314,7 @@ describe('ProfilePage', () => {
     const followCalls: string[] = [];
     mockFetch({
       '/auth/me': () => jsonResponse(me),
-      '/users/u2': () => jsonResponse(other),
+      '/users/by-username/grace': () => jsonResponse(other),
       '/tiles/u2': () => jsonResponse([]),
       '/follows/u2/followers': () => jsonResponse([]),
       'POST /follows/u2': () => {
@@ -265,7 +326,7 @@ describe('ProfilePage', () => {
     });
 
     const user = userEvent.setup();
-    renderProfilePage('/users/u2');
+    renderProfilePage('/users/grace');
 
     const followButton = await screen.findByRole('button', {
       name: /^follow$/i,
@@ -284,7 +345,7 @@ describe('ProfilePage', () => {
   it('keeps the profile on screen when following fails', async () => {
     mockFetch({
       '/auth/me': () => jsonResponse(me),
-      '/users/u2': () => jsonResponse(other),
+      '/users/by-username/grace': () => jsonResponse(other),
       '/tiles/u2': () => jsonResponse([]),
       '/follows/u2/followers': () => jsonResponse([]),
       'POST /follows/u2': () =>
@@ -292,7 +353,7 @@ describe('ProfilePage', () => {
     });
 
     const user = userEvent.setup();
-    renderProfilePage('/users/u2');
+    renderProfilePage('/users/grace');
 
     await user.click(await screen.findByRole('button', { name: /^follow$/i }));
 

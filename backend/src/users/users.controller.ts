@@ -40,6 +40,13 @@ export class UsersController {
       resolveUploadLimits(config));
   }
 
+  @Get('by-username/:username')
+  getProfileByUsername(
+    @Param('username') username: string,
+  ): Promise<UserProfileDto> {
+    return this.usersService.getProfileByUsername(username);
+  }
+
   @Get(':id')
   getProfile(@Param('id') id: string): Promise<UserProfileDto> {
     return this.usersService.getProfile(id);

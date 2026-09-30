@@ -95,7 +95,18 @@ export class UsersService {
   async getProfile(id: string): Promise<UserProfileDto> {
     const user = await this.findById(id);
     if (!user) throw new NotFoundException('User not found');
+    return this.toProfile(user);
+  }
 
+  /** Looks up a profile by username, ignoring case (usernames are stored lowercase). */
+  async getProfileByUsername(username: string): Promise<UserProfileDto> {
+    const user = await this.findByUsername(username.toLowerCase());
+    if (!user) throw new NotFoundException('User not found');
+    return this.toProfile(user);
+  }
+
+  private async toProfile(user: UserRecord): Promise<UserProfileDto> {
+    const { id } = user;
     const follows = await this.stores.follows.readAll();
     const followerCount = follows.filter(
       (follow) => follow.followeeId === id,
@@ -106,6 +117,7 @@ export class UsersService {
 
     return {
       id: user.id,
+      username: user.username,
       name: user.name,
       photoUrl: user.photoUrl,
       bio: user.bio,
