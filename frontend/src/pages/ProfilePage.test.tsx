@@ -210,6 +210,100 @@ describe('ProfilePage', () => {
     expect(await screen.findByText('second tile')).toBeInTheDocument();
     expect(tileFetches).toHaveLength(2);
   });
+
+  it('shows a skeleton while loading', async () => {
+    mockFetch({
+      '/auth/me': () => jsonResponse(me),
+      '/users/u1': () => new Promise<Response>(() => {}),
+      '/tiles/u1': () => jsonResponse([]),
+    });
+
+    renderProfilePage('/');
+
+    expect(
+      await screen.findByRole('status', { name: 'Loading profile' }),
+    ).toBeInTheDocument();
+  });
+
+  it('re-runs the request when Try again is clicked', async () => {
+    let attempts = 0;
+    mockFetch({
+      '/auth/me': () => jsonResponse(me),
+      '/users/u1': () =>
+        ++attempts === 1
+          ? jsonResponse({ message: 'Server error' }, 500)
+          : jsonResponse(me),
+      '/tiles/u1': () => jsonResponse([]),
+    });
+
+    const user = userEvent.setup();
+    renderProfilePage('/');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Server error');
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Ada' }),
+    ).toBeInTheDocument();
+    expect(attempts).toBe(2);
+  });
+
+  it('disables the follow button while the request is pending', async () => {
+    let resolveFollow!: (response: Response) => void;
+    const followCalls: string[] = [];
+    mockFetch({
+      '/auth/me': () => jsonResponse(me),
+      '/users/u2': () => jsonResponse(other),
+      '/tiles/u2': () => jsonResponse([]),
+      '/follows/u2/followers': () => jsonResponse([]),
+      'POST /follows/u2': () => {
+        followCalls.push('u2');
+        return new Promise<Response>((resolve) => {
+          resolveFollow = resolve;
+        });
+      },
+    });
+
+    const user = userEvent.setup();
+    renderProfilePage('/users/u2');
+
+    const followButton = await screen.findByRole('button', {
+      name: /^follow$/i,
+    });
+    await user.click(followButton);
+    await user.click(followButton);
+    expect(followButton).toBeDisabled();
+
+    resolveFollow(new Response(null, { status: 204 }));
+    expect(
+      await screen.findByRole('button', { name: /^unfollow$/i }),
+    ).toBeEnabled();
+    expect(followCalls).toEqual(['u2']);
+  });
+
+  it('keeps the profile on screen when following fails', async () => {
+    mockFetch({
+      '/auth/me': () => jsonResponse(me),
+      '/users/u2': () => jsonResponse(other),
+      '/tiles/u2': () => jsonResponse([]),
+      '/follows/u2/followers': () => jsonResponse([]),
+      'POST /follows/u2': () =>
+        jsonResponse({ message: 'Cannot follow this user' }, 400),
+    });
+
+    const user = userEvent.setup();
+    renderProfilePage('/users/u2');
+
+    await user.click(await screen.findByRole('button', { name: /^follow$/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Cannot follow this user',
+    );
+    expect(screen.getByRole('heading', { name: 'Grace' })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Try again' }),
+    ).not.toBeInTheDocument();
+  });
 });
 
 function mockFetch(

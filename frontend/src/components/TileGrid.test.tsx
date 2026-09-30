@@ -180,4 +180,36 @@ describe('TileGrid', () => {
     expect(screen.queryByText('Delete this post?')).not.toBeInTheDocument();
     expect(onDelete).not.toHaveBeenCalled();
   });
+
+  it('disables the confirm and cancel buttons while deleting', async () => {
+    let resolveDelete!: () => void;
+    const onDelete = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveDelete = resolve;
+        }),
+    );
+    const user = userEvent.setup();
+    render(<TileGrid tiles={ownTiles} isOwnProfile onDelete={onDelete} />, {
+      wrapper: MemoryRouter,
+    });
+
+    await user.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
+    const confirmRow = screen.getByText('Delete this post?').parentElement!;
+    await user.click(
+      within(confirmRow).getByRole('button', { name: 'Delete' }),
+    );
+
+    const deletingButton = within(confirmRow).getByRole('button', {
+      name: 'Deleting…',
+    });
+    expect(deletingButton).toBeDisabled();
+    expect(
+      within(confirmRow).getByRole('button', { name: 'Cancel' }),
+    ).toBeDisabled();
+    await user.click(deletingButton);
+    expect(onDelete).toHaveBeenCalledTimes(1);
+
+    resolveDelete();
+  });
 });

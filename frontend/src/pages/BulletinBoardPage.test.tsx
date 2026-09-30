@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { BulletinItem } from '../api/types.ts';
@@ -92,5 +93,31 @@ describe('BulletinBoardPage', () => {
     expect(
       await screen.findByText('Could not load the bulletin board.'),
     ).toBeInTheDocument();
+  });
+
+  it('shows a skeleton while loading', () => {
+    mockFeed(new Promise<Response>(() => {}));
+
+    renderPage();
+
+    expect(
+      screen.getByRole('status', { name: 'Loading bulletin board' }),
+    ).toBeInTheDocument();
+  });
+
+  it('re-runs the request when Try again is clicked', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Network down'))
+      .mockResolvedValueOnce(new Response(JSON.stringify([makeItem(1)])));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Try again' }));
+
+    expect(await screen.findByAltText('Item 1')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

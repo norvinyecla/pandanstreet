@@ -101,4 +101,24 @@ describe('SignupPage', () => {
     await user.click(await screen.findByRole('link', { name: /log in/i }));
     expect(await screen.findByText('Login page')).toBeInTheDocument();
   });
+
+  it('disables the button while signing up', async () => {
+    let resolveSignup!: (response: Response) => void;
+    fetchMock.mockImplementation((url: string) =>
+      url.endsWith('/auth/me')
+        ? Promise.resolve(new Response(null, { status: 401 }))
+        : new Promise<Response>((resolve) => {
+            resolveSignup = resolve;
+          }),
+    );
+
+    renderSignupPage();
+    await fillAndSubmit();
+
+    expect(
+      screen.getByRole('button', { name: 'Creating account…' }),
+    ).toBeDisabled();
+    resolveSignup(new Response(JSON.stringify(profile), { status: 201 }));
+    expect(await screen.findByText('Home')).toBeInTheDocument();
+  });
 });

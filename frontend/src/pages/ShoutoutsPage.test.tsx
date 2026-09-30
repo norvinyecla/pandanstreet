@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Shoutout } from '../api/types.ts';
@@ -97,5 +98,32 @@ describe('ShoutoutsPage', () => {
     renderPage();
 
     expect(await screen.findByText('Not logged in')).toBeInTheDocument();
+  });
+
+  it('shows a skeleton while loading', () => {
+    mockFeed(new Promise<Response>(() => {}));
+
+    renderPage();
+
+    expect(
+      screen.getByRole('status', { name: 'Loading shout-outs' }),
+    ).toBeInTheDocument();
+  });
+
+  it('re-runs the request when Try again is clicked', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Network down'))
+      .mockResolvedValueOnce(new Response(JSON.stringify([makeShoutout(1)])));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Try again' }));
+
+    expect(await screen.findByText('Shout 1')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

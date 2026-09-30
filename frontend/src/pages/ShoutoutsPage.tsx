@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client.ts';
 import type { Shoutout } from '../api/types.ts';
 import { FeedAuthorLink } from '../components/FeedAuthorLink.tsx';
+import { LoadError } from '../components/LoadError.tsx';
+import { ShoutoutsSkeleton } from '../components/Skeletons.tsx';
 
 export const SHOUTOUTS_LIMIT = 20;
 
 export function ShoutoutsPage() {
   const [shoutouts, setShoutouts] = useState<Shoutout[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -28,15 +31,20 @@ export function ShoutoutsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadKey]);
+
+  const handleRetry = () => {
+    setError(null);
+    setReloadKey((key) => key + 1);
+  };
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold text-gray-900">Shout-outs</h1>
       {error ? (
-        <p className="text-center text-sm text-red-600">{error}</p>
+        <LoadError message={error} onRetry={handleRetry} />
       ) : !shoutouts ? (
-        <p className="text-center text-sm text-gray-500">Loading…</p>
+        <ShoutoutsSkeleton />
       ) : shoutouts.length === 0 ? (
         <p className="text-center text-sm text-gray-500">
           No shout-outs yet. Follow people to see their text tiles here.

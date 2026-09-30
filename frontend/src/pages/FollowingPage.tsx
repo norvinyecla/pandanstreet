@@ -3,13 +3,16 @@ import { api, ApiError } from '../api/client.ts';
 import type { FollowUser } from '../api/types.ts';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { FollowUserList } from '../components/FollowUserList.tsx';
+import { LoadError } from '../components/LoadError.tsx';
+import { UserListSkeleton } from '../components/Skeletons.tsx';
 
 export function FollowingPage() {
   const { currentUser } = useAuth();
   const [following, setFollowing] = useState<FollowUser[] | null>(null);
   const [unfollowedIds, setUnfollowedIds] = useState<Set<string>>(new Set());
-  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,12 +33,25 @@ export function FollowingPage() {
     return () => {
       cancelled = true;
     };
-  }, [currentUser]);
+  }, [currentUser, reloadKey]);
+
+  const handleRetry = () => {
+    setError(null);
+    setReloadKey((key) => key + 1);
+  };
+
+  const setPending = (userId: string, isPending: boolean) =>
+    setPendingIds((prev) => {
+      const next = new Set(prev);
+      if (isPending) next.add(userId);
+      else next.delete(userId);
+      return next;
+    });
 
   // Unfollowed profiles stay listed so they can be re-followed from here.
   const handleToggleFollow = async (user: FollowUser) => {
     const isUnfollowed = unfollowedIds.has(user.id);
-    setPendingId(user.id);
+    setPending(user.id, true);
     setActionError(null);
     try {
       if (isUnfollowed) {
@@ -54,7 +70,7 @@ export function FollowingPage() {
         err instanceof ApiError ? err.message : 'Something went wrong.',
       );
     } finally {
-      setPendingId(null);
+      setPending(user.id, false);
     }
   };
 
@@ -67,9 +83,9 @@ export function FollowingPage() {
         </p>
       )}
       {error ? (
-        <p className="text-center text-sm text-red-600">{error}</p>
+        <LoadError message={error} onRetry={handleRetry} />
       ) : !following ? (
-        <p className="text-center text-sm text-gray-500">Loading…</p>
+        <UserListSkeleton />
       ) : following.length === 0 ? (
         <p className="text-center text-sm text-gray-500">
           You're not following anyone yet.
@@ -82,7 +98,7 @@ export function FollowingPage() {
               <button
                 type="button"
                 onClick={() => handleToggleFollow(user)}
-                disabled={pendingId === user.id}
+                disabled={pendingIds.has(user.id)}
                 aria-label={`Follow ${user.name}`}
                 className="min-h-11 shrink-0 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
               >
@@ -92,7 +108,7 @@ export function FollowingPage() {
               <button
                 type="button"
                 onClick={() => handleToggleFollow(user)}
-                disabled={pendingId === user.id}
+                disabled={pendingIds.has(user.id)}
                 aria-label={`Unfollow ${user.name}`}
                 className="min-h-11 shrink-0 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 disabled:opacity-50"
               >

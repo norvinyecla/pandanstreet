@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthProvider } from '../auth/AuthContext.tsx';
@@ -86,5 +87,39 @@ describe('FollowersPage', () => {
     renderPage();
 
     expect(await screen.findByText('User not found')).toBeInTheDocument();
+  });
+
+  it('shows a skeleton while loading', async () => {
+    mockFetch({
+      '/auth/me': () => jsonResponse(me),
+      '/follows/u1/followers': () => new Promise<Response>(() => {}),
+    });
+
+    renderPage();
+
+    expect(
+      await screen.findByRole('status', { name: 'Loading people' }),
+    ).toBeInTheDocument();
+  });
+
+  it('re-runs the request when Try again is clicked', async () => {
+    let attempts = 0;
+    mockFetch({
+      '/auth/me': () => jsonResponse(me),
+      '/follows/u1/followers': () =>
+        ++attempts === 1
+          ? jsonResponse({ message: 'Server error' }, 500)
+          : jsonResponse([{ id: 'u2', name: 'Grace', photoUrl: '' }]),
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Try again' }));
+
+    expect(
+      await screen.findByRole('link', { name: 'Grace' }),
+    ).toBeInTheDocument();
+    expect(attempts).toBe(2);
   });
 });

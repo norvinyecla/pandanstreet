@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError } from '../api/client.ts';
 import type { Tile } from '../api/types.ts';
 import { useAuth } from '../auth/AuthContext.tsx';
+import { LoadError } from '../components/LoadError.tsx';
+import { TileEditSkeleton } from '../components/Skeletons.tsx';
 import { useToast } from '../toast/toastContext.ts';
 
 const TEXT_MAX_LENGTH = 140;
@@ -22,6 +24,8 @@ export function TileEditPage() {
   const [text, setText] = useState(initialText ?? '');
   const [isLoading, setIsLoading] = useState(initialText === undefined);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -33,14 +37,14 @@ export function TileEditPage() {
         if (cancelled) return;
         const tile = tiles.find((t) => t.id === id);
         if (!tile || tile.type !== 'text') {
-          setError('Tile not found.');
+          setLoadError('Tile not found.');
           return;
         }
         setText(tile.text);
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(
+          setLoadError(
             err instanceof ApiError ? err.message : 'Could not load tile.',
           );
         }
@@ -51,7 +55,7 @@ export function TileEditPage() {
     return () => {
       cancelled = true;
     };
-  }, [id, initialText, currentUser]);
+  }, [id, initialText, currentUser, reloadKey]);
 
   useEffect(() => {
     if (isSubmitting) return;
@@ -88,8 +92,18 @@ export function TileEditPage() {
     }
   };
 
+  const handleRetry = () => {
+    setLoadError(null);
+    setIsLoading(true);
+    setReloadKey((key) => key + 1);
+  };
+
+  if (loadError) {
+    return <LoadError message={loadError} onRetry={handleRetry} />;
+  }
+
   if (isLoading) {
-    return <p className="text-center text-sm text-gray-500">Loading…</p>;
+    return <TileEditSkeleton />;
   }
 
   return (

@@ -101,4 +101,22 @@ describe('LoginPage', () => {
     );
     expect(await screen.findByText('Sign up page')).toBeInTheDocument();
   });
+
+  it('disables the button while logging in', async () => {
+    let resolveLogin!: (response: Response) => void;
+    fetchMock.mockImplementation((url: string) =>
+      url.endsWith('/auth/me')
+        ? Promise.resolve(new Response(null, { status: 401 }))
+        : new Promise<Response>((resolve) => {
+            resolveLogin = resolve;
+          }),
+    );
+
+    renderLoginPage();
+    await fillAndSubmit('ada', 'password123');
+
+    expect(screen.getByRole('button', { name: 'Logging in…' })).toBeDisabled();
+    resolveLogin(new Response(JSON.stringify(profile), { status: 200 }));
+    expect(await screen.findByText('Home')).toBeInTheDocument();
+  });
 });

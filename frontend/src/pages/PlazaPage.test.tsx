@@ -121,4 +121,59 @@ describe('PlazaPage', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
   });
+
+  it('shows a skeleton while loading', () => {
+    mockFetch({ 'GET /follows/plaza': () => new Promise<Response>(() => {}) });
+
+    renderPage();
+
+    expect(
+      screen.getByRole('status', { name: 'Loading people' }),
+    ).toBeInTheDocument();
+  });
+
+  it('re-runs the request when Try again is clicked', async () => {
+    let attempts = 0;
+    mockFetch({
+      'GET /follows/plaza': () =>
+        ++attempts === 1
+          ? jsonResponse({ message: 'Server error' }, 500)
+          : jsonResponse([makeUser(2), makeUser(3)]),
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Try again' }));
+
+    expect(await screen.findAllByRole('listitem')).toHaveLength(2);
+    expect(attempts).toBe(2);
+  });
+
+  it('disables the Follow button while the request is pending', async () => {
+    let resolveFollow!: (response: Response) => void;
+    const fetchMock = mockFetch({
+      'GET /follows/plaza': () => jsonResponse([makeUser(2), makeUser(3)]),
+      'POST /follows/u2': () =>
+        new Promise<Response>((resolve) => {
+          resolveFollow = resolve;
+        }),
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    const followButton = await screen.findByRole('button', {
+      name: 'Follow Person 2',
+    });
+    await user.click(followButton);
+    await user.click(followButton);
+    expect(followButton).toBeDisabled();
+
+    resolveFollow(new Response(null, { status: 204 }));
+    expect(await screen.findByText('Following')).toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST'),
+    ).toHaveLength(1);
+  });
 });

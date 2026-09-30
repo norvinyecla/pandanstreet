@@ -3,7 +3,9 @@ import { Link, useParams } from 'react-router-dom';
 import { api, ApiError, resolveAssetUrl } from '../api/client.ts';
 import type { FollowUser, Tile, UserProfile } from '../api/types.ts';
 import { useAuth } from '../auth/AuthContext.tsx';
+import { LoadError } from '../components/LoadError.tsx';
 import { ProfileAvatar } from '../components/ProfileAvatar.tsx';
+import { ProfileSkeleton } from '../components/Skeletons.tsx';
 import { TileGrid } from '../components/TileGrid.tsx';
 import { useTilesVersion } from '../tiles/TilesVersionContext.ts';
 import { useToast } from '../toast/toastContext.ts';
@@ -21,6 +23,8 @@ export function ProfilePage() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [isFollowActionPending, setIsFollowActionPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!profileId) return;
@@ -53,11 +57,18 @@ export function ProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [profileId, isOwnProfile, currentUser?.id, tilesVersion]);
+  }, [profileId, isOwnProfile, currentUser?.id, tilesVersion, reloadKey]);
+
+  const handleRetry = () => {
+    setError(null);
+    setProfile(null);
+    setReloadKey((key) => key + 1);
+  };
 
   const handleToggleFollow = async () => {
     if (!profile) return;
     setIsFollowActionPending(true);
+    setActionError(null);
     try {
       if (isFollowing) {
         await api.delete<void>(`/follows/${profile.id}`);
@@ -73,7 +84,9 @@ export function ProfilePage() {
         );
       }
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Something went wrong.');
+      setActionError(
+        err instanceof ApiError ? err.message : 'Something went wrong.',
+      );
     } finally {
       setIsFollowActionPending(false);
     }
@@ -86,11 +99,11 @@ export function ProfilePage() {
   };
 
   if (error) {
-    return <p className="text-center text-sm text-red-600">{error}</p>;
+    return <LoadError message={error} onRetry={handleRetry} />;
   }
 
   if (!profile) {
-    return <p className="text-center text-sm text-gray-500">Loading…</p>;
+    return <ProfileSkeleton />;
   }
 
   const followerLabel = `${profile.followerCount} ${
@@ -144,6 +157,11 @@ export function ProfilePage() {
         >
           {isFollowing ? 'Unfollow' : 'Follow'}
         </button>
+      )}
+      {actionError && (
+        <p role="alert" className="text-center text-sm text-red-600">
+          {actionError}
+        </p>
       )}
       <div className="w-full pt-2">
         <h2 className="pb-2 text-sm font-semibold text-gray-900">Tiles</h2>
