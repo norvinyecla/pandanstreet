@@ -15,6 +15,7 @@ function renderWithAuth(loggedIn: boolean) {
           ? new Response(
               JSON.stringify({
                 id: 'u1',
+                username: 'ada',
                 name: 'Ada',
                 photoUrl: '',
                 followerCount: 0,
@@ -70,6 +71,7 @@ describe('RequireAuth', () => {
             ? new Response(
                 JSON.stringify({
                   id: 'u1',
+                  username: 'ada',
                   name: 'Ada',
                   photoUrl: '',
                   followerCount: 0,

@@ -40,7 +40,7 @@ function App() {
                 }
               />
               <Route
-                path="/users/:id"
+                path="/users/:username"
                 element={
                   <RequireAuth>
                     <ProfilePage />

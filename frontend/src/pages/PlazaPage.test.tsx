@@ -23,7 +23,12 @@ function mockFetch(handlers: Record<string, () => Promise<Response>>) {
 }
 
 function makeUser(index: number): FollowUser {
-  return { id: `u${index}`, name: `Person ${index}`, photoUrl: '' };
+  return {
+    id: `u${index}`,
+    username: `person${index}`,
+    name: `Person ${index}`,
+    photoUrl: '',
+  };
 }
 
 function renderPage() {
@@ -46,7 +51,7 @@ describe('PlazaPage', () => {
     expect(await screen.findAllByRole('listitem')).toHaveLength(3);
     expect(screen.getByRole('link', { name: 'Person 2' })).toHaveAttribute(
       'href',
-      '/users/u2',
+      '/users/person2',
     );
     expect(screen.getAllByRole('button', { name: /^follow/i })).toHaveLength(3);
   });

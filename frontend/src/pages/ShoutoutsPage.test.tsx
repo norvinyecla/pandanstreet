@@ -10,7 +10,7 @@ function makeShoutout(index: number): Shoutout {
     id: `t${index}`,
     createdAt: `2026-01-01T00:00:${String(index).padStart(2, '0')}Z`,
     text: `Shout ${index}`,
-    author: { id: 'u2', name: 'Grace', photoUrl: '' },
+    author: { id: 'u2', username: 'grace', name: 'Grace', photoUrl: '' },
   };
 }
 
@@ -39,7 +39,12 @@ describe('ShoutoutsPage', () => {
             makeShoutout(2),
             {
               ...makeShoutout(1),
-              author: { id: 'u3', name: 'Linus', photoUrl: '/uploads/l.png' },
+              author: {
+                id: 'u3',
+                username: 'linus',
+                name: 'Linus',
+                photoUrl: '/uploads/l.png',
+              },
             },
           ]),
         ),
@@ -54,7 +59,7 @@ describe('ShoutoutsPage', () => {
     expect(items[1]).toHaveTextContent('Shout 1');
     expect(screen.getByRole('link', { name: 'Grace' })).toHaveAttribute(
       'href',
-      '/users/u2',
+      '/users/grace',
     );
     expect(screen.getByAltText("Linus's profile photo")).toHaveAttribute(
       'src',

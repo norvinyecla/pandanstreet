@@ -197,6 +197,7 @@ export class TilesService {
           text: record.text,
           author: {
             id: author.id,
+            username: author.username,
             name: author.name,
             photoUrl: author.photoUrl,
           },
@@ -239,6 +240,7 @@ export class TilesService {
           badgeColor: record.badgeColor,
           author: {
             id: author.id,
+            username: author.username,
             name: author.name,
             photoUrl: author.photoUrl,
           },
