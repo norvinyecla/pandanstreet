@@ -68,4 +68,39 @@ describe('ProfileEditPage', () => {
     expect(await screen.findByText('Home')).toBeInTheDocument();
     expect(patchCalls).toEqual([JSON.stringify({ bio: 'New bio.' })]);
   });
+
+  it('disables Save while the profile is saving', async () => {
+    let resolvePatch!: (response: Response) => void;
+    let patchCount = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string, init?: RequestInit) => {
+        const path = new URL(url).pathname;
+        if (path === '/auth/me') {
+          return Promise.resolve(
+            new Response(JSON.stringify(me), { status: 200 }),
+          );
+        }
+        if (path === '/users/u1/bio' && init?.method === 'PATCH') {
+          patchCount += 1;
+          return new Promise<Response>((resolve) => {
+            resolvePatch = resolve;
+          });
+        }
+        return Promise.reject(new Error(`Unexpected fetch to ${url}`));
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderEditPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Save' }));
+    const savingButton = screen.getByRole('button', { name: 'Saving…' });
+    expect(savingButton).toBeDisabled();
+    await user.click(savingButton);
+
+    resolvePatch(new Response(JSON.stringify(me), { status: 200 }));
+    expect(await screen.findByText('Home')).toBeInTheDocument();
+    expect(patchCount).toBe(1);
+  });
 });

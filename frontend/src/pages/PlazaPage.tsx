@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { api, ApiError } from '../api/client.ts';
 import type { FollowUser } from '../api/types.ts';
 import { FollowUserList } from '../components/FollowUserList.tsx';
+import { LoadError } from '../components/LoadError.tsx';
+import { UserListSkeleton } from '../components/Skeletons.tsx';
 
 /** Plaza only shows suggestions when at least this many profiles qualify. */
 export const PLAZA_MIN_CANDIDATES = 2;
@@ -10,8 +12,9 @@ export const PLAZA_MAX_CANDIDATES = 3;
 export function PlazaPage() {
   const [candidates, setCandidates] = useState<FollowUser[] | null>(null);
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
-  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,10 +40,23 @@ export function PlazaPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadKey]);
+
+  const handleRetry = () => {
+    setError(null);
+    setReloadKey((key) => key + 1);
+  };
+
+  const setPending = (userId: string, isPending: boolean) =>
+    setPendingIds((prev) => {
+      const next = new Set(prev);
+      if (isPending) next.add(userId);
+      else next.delete(userId);
+      return next;
+    });
 
   const handleFollow = async (user: FollowUser) => {
-    setPendingId(user.id);
+    setPending(user.id, true);
     setActionError(null);
     try {
       await api.post<void>(`/follows/${user.id}`);
@@ -50,7 +66,7 @@ export function PlazaPage() {
         err instanceof ApiError ? err.message : 'Something went wrong.',
       );
     } finally {
-      setPendingId(null);
+      setPending(user.id, false);
     }
   };
 
@@ -63,9 +79,9 @@ export function PlazaPage() {
         </p>
       )}
       {error ? (
-        <p className="text-center text-sm text-red-600">{error}</p>
+        <LoadError message={error} onRetry={handleRetry} />
       ) : !candidates ? (
-        <p className="text-center text-sm text-gray-500">Loading…</p>
+        <UserListSkeleton rows={PLAZA_MAX_CANDIDATES} />
       ) : candidates.length === 0 ? (
         <p className="text-center text-sm text-gray-500">
           No one new to discover right now. Check back later.
@@ -82,7 +98,7 @@ export function PlazaPage() {
               <button
                 type="button"
                 onClick={() => handleFollow(user)}
-                disabled={pendingId === user.id}
+                disabled={pendingIds.has(user.id)}
                 aria-label={`Follow ${user.name}`}
                 className="min-h-11 shrink-0 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
               >

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { api, ApiError, resolveAssetUrl } from '../api/client.ts';
 import type { BulletinItem } from '../api/types.ts';
 import { FeedAuthorLink } from '../components/FeedAuthorLink.tsx';
+import { LoadError } from '../components/LoadError.tsx';
+import { BulletinBoardSkeleton } from '../components/Skeletons.tsx';
 import { BadgeLozenge } from '../components/TileGrid.tsx';
 
 export const BULLETIN_BOARD_LIMIT = 21;
@@ -9,6 +11,7 @@ export const BULLETIN_BOARD_LIMIT = 21;
 export function BulletinBoardPage() {
   const [items, setItems] = useState<BulletinItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -29,15 +32,20 @@ export function BulletinBoardPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadKey]);
+
+  const handleRetry = () => {
+    setError(null);
+    setReloadKey((key) => key + 1);
+  };
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold text-gray-900">Bulletin Board</h1>
       {error ? (
-        <p className="text-center text-sm text-red-600">{error}</p>
+        <LoadError message={error} onRetry={handleRetry} />
       ) : !items ? (
-        <p className="text-center text-sm text-gray-500">Loading…</p>
+        <BulletinBoardSkeleton />
       ) : items.length === 0 ? (
         <p className="text-center text-sm text-gray-500">
           Nothing on the board yet. Follow people to see their item tiles here.

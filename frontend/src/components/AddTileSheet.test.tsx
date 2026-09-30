@@ -187,4 +187,31 @@ describe('AddTileSheet', () => {
 
     expect(onClose).toHaveBeenCalledTimes(3);
   });
+
+  it('disables Post tile while the tile is being created', async () => {
+    let resolvePost!: (response: Response) => void;
+    let postCount = 0;
+    mockFetch({
+      'POST /tiles/text': () => {
+        postCount += 1;
+        return new Promise<Response>((resolve) => {
+          resolvePost = resolve;
+        });
+      },
+    });
+
+    const user = userEvent.setup();
+    const { onCreated } = renderSheet();
+
+    await user.click(screen.getByRole('button', { name: /^text/i }));
+    await user.type(screen.getByRole('textbox', { name: 'Text' }), 'Hi there');
+    await user.click(screen.getByRole('button', { name: 'Post tile' }));
+    const postingButton = screen.getByRole('button', { name: 'Posting…' });
+    expect(postingButton).toBeDisabled();
+    await user.click(postingButton);
+
+    resolvePost(new Response(JSON.stringify({}), { status: 201 }));
+    await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+    expect(postCount).toBe(1);
+  });
 });

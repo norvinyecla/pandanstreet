@@ -127,4 +127,74 @@ describe('TileEditPage', () => {
     const field = await screen.findByLabelText(/text/i);
     await waitFor(() => expect(field).toHaveValue('From the server'));
   });
+
+  it('shows a skeleton while loading the tile', async () => {
+    mockFetch({
+      '/auth/me': () => jsonResponse(me),
+      '/tiles/u1': () => new Promise<Response>(() => {}),
+    });
+
+    renderEditPage({ pathname: '/tiles/t1/edit' });
+
+    expect(
+      await screen.findByRole('status', { name: 'Loading tile' }),
+    ).toBeInTheDocument();
+  });
+
+  it('re-runs the request when Try again is clicked', async () => {
+    let attempts = 0;
+    mockFetch({
+      '/auth/me': () => jsonResponse(me),
+      '/tiles/u1': () =>
+        ++attempts === 1
+          ? jsonResponse({ message: 'Server error' }, 500)
+          : jsonResponse([
+              {
+                id: 't1',
+                userId: 'u1',
+                type: 'text',
+                createdAt: '2026-01-01',
+                text: 'From the server',
+              },
+            ]),
+    });
+
+    const user = userEvent.setup();
+    renderEditPage({ pathname: '/tiles/t1/edit' });
+
+    await user.click(await screen.findByRole('button', { name: 'Try again' }));
+
+    const field = await screen.findByLabelText(/text/i);
+    expect(field).toHaveValue('From the server');
+    expect(attempts).toBe(2);
+  });
+
+  it('disables Save while the update is pending', async () => {
+    let resolvePatch!: (response: Response) => void;
+    const patched: unknown[] = [];
+    mockFetch({
+      '/auth/me': () => jsonResponse(me),
+      'PATCH /tiles/t1': (init) => {
+        patched.push(init?.body);
+        return new Promise<Response>((resolve) => {
+          resolvePatch = resolve;
+        });
+      },
+    });
+
+    const user = userEvent.setup();
+    renderEditPage({
+      pathname: '/tiles/t1/edit',
+      state: { text: 'Original text' },
+    });
+
+    await user.click(await screen.findByRole('button', { name: 'Save' }));
+    const savingButton = screen.getByRole('button', { name: 'Saving…' });
+    expect(savingButton).toBeDisabled();
+    await user.click(savingButton);
+
+    resolvePatch(new Response(JSON.stringify({}), { status: 200 }));
+    expect(await screen.findByText('Home')).toBeInTheDocument();
+    expect(patched).toHaveLength(1);
+  });
 });

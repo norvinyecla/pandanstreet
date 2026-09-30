@@ -15,6 +15,23 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Requests whose `401` means "wrong credentials" or "not logged in yet", rather
+ * than an expired session, so they never trigger the unauthorized handler.
+ */
+const SESSION_CHECK_PATHS = new Set([
+  '/auth/login',
+  '/auth/signup',
+  '/auth/me',
+]);
+
+let unauthorizedHandler: (() => void) | null = null;
+
+/** Registers the callback run when a request fails because the session has expired. */
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  unauthorizedHandler = handler;
+}
+
 interface ErrorBody {
   message?: string | string[];
 }
@@ -40,6 +57,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     (T & ErrorBody) | null;
 
   if (!response.ok) {
+    if (response.status === 401 && !SESSION_CHECK_PATHS.has(path)) {
+      unauthorizedHandler?.();
+    }
     const message = Array.isArray(body?.message)
       ? body.message.join(', ')
       : (body?.message ?? 'Something went wrong. Please try again.');

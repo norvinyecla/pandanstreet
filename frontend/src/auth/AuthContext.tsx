@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { api, ApiError } from '../api/client.ts';
+import { api, ApiError, setUnauthorizedHandler } from '../api/client.ts';
 import type { UserProfile } from '../api/types.ts';
 
 interface AuthContextValue {
@@ -40,6 +40,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // An expired session clears the user, so RequireAuth sends them to /login.
+  useEffect(() => {
+    setUnauthorizedHandler(() => setCurrentUser(null));
+    return () => setUnauthorizedHandler(null);
   }, []);
 
   const login = useCallback(async (username: string, password: string) => {

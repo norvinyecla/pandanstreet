@@ -148,4 +148,68 @@ describe('FollowingPage', () => {
       await screen.findByText(/not following anyone yet/i),
     ).toBeInTheDocument();
   });
+
+  it('re-runs the request when Try again is clicked', async () => {
+    let attempts = 0;
+    mockFetch({
+      '/auth/me': () => jsonResponse(me),
+      '/follows/u1/following': () =>
+        ++attempts === 1
+          ? jsonResponse({ message: 'Server error' }, 500)
+          : jsonResponse([{ id: 'u2', name: 'Grace', photoUrl: '' }]),
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Try again' }));
+
+    expect(
+      await screen.findByRole('button', { name: 'Unfollow Grace' }),
+    ).toBeInTheDocument();
+    expect(attempts).toBe(2);
+  });
+
+  it('keeps each button disabled until its own request finishes', async () => {
+    const resolvers: Record<string, (response: Response) => void> = {};
+    const pending = (id: string) => () =>
+      new Promise<Response>((resolve) => {
+        resolvers[id] = resolve;
+      });
+    const fetchMock = mockFetch({
+      '/auth/me': () => jsonResponse(me),
+      '/follows/u1/following': () =>
+        jsonResponse([
+          { id: 'u2', name: 'Grace', photoUrl: '' },
+          { id: 'u3', name: 'Linus', photoUrl: '' },
+        ]),
+      'DELETE /follows/u2': pending('u2'),
+      'DELETE /follows/u3': pending('u3'),
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    const unfollowGrace = await screen.findByRole('button', {
+      name: 'Unfollow Grace',
+    });
+    await user.click(unfollowGrace);
+    await user.click(unfollowGrace);
+    expect(unfollowGrace).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: 'Unfollow Linus' }));
+    resolvers.u3!(new Response(null, { status: 204 }));
+    expect(
+      await screen.findByRole('button', { name: 'Follow Linus' }),
+    ).toBeEnabled();
+    expect(unfollowGrace).toBeDisabled();
+
+    resolvers.u2!(new Response(null, { status: 204 }));
+    expect(
+      await screen.findByRole('button', { name: 'Follow Grace' }),
+    ).toBeEnabled();
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => init?.method === 'DELETE'),
+    ).toHaveLength(2);
+  });
 });

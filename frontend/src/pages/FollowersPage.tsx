@@ -3,11 +3,14 @@ import { api, ApiError } from '../api/client.ts';
 import type { FollowUser } from '../api/types.ts';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { FollowUserList } from '../components/FollowUserList.tsx';
+import { LoadError } from '../components/LoadError.tsx';
+import { UserListSkeleton } from '../components/Skeletons.tsx';
 
 export function FollowersPage() {
   const { currentUser } = useAuth();
   const [followers, setFollowers] = useState<FollowUser[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -27,15 +30,20 @@ export function FollowersPage() {
     return () => {
       cancelled = true;
     };
-  }, [currentUser]);
+  }, [currentUser, reloadKey]);
+
+  const handleRetry = () => {
+    setError(null);
+    setReloadKey((key) => key + 1);
+  };
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold text-gray-900">Followers</h1>
       {error ? (
-        <p className="text-center text-sm text-red-600">{error}</p>
+        <LoadError message={error} onRetry={handleRetry} />
       ) : !followers ? (
-        <p className="text-center text-sm text-gray-500">Loading…</p>
+        <UserListSkeleton withAction={false} />
       ) : followers.length === 0 ? (
         <p className="text-center text-sm text-gray-500">No followers yet.</p>
       ) : (
