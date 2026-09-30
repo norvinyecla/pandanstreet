@@ -75,7 +75,7 @@ export function BulletinBoardPage() {
               </div>
               <p className="truncate text-xs text-gray-900">{item.caption}</p>
               <TileAge createdAt={item.createdAt} className="truncate" />
-              <FeedAuthorLink author={item.author} />
+              <FeedAuthorLink author={item.author} showAvatar />
             </li>
           ))}
         </ul>
