@@ -8,5 +8,9 @@
   "workspaces": [
     "frontend",
     "backend"
-  ]
+  ],
+  "scripts": {
+    "format": "yarn workspace backend prettier --write src test ../frontend/src ../frontend/vite.config.ts",
+    "format:check": "yarn workspace backend prettier --check src test ../frontend/src ../frontend/vite.config.ts"
+  }
 }
