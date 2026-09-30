@@ -78,6 +78,21 @@ describe('ShoutoutsPage', () => {
     );
   });
 
+  it('shows the age of each shout-out in a time element', async () => {
+    const createdAt = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    mockFeed(
+      Promise.resolve(
+        new Response(JSON.stringify([{ ...makeShoutout(1), createdAt }])),
+      ),
+    );
+
+    renderPage();
+
+    const age = await screen.findByText('5m ago');
+    expect(age.tagName).toBe('TIME');
+    expect(age).toHaveAttribute('dateTime', createdAt);
+  });
+
   it('shows an empty state when there are no shout-outs', async () => {
     mockFeed(Promise.resolve(new Response(JSON.stringify([]))));
 

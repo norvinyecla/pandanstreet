@@ -4,6 +4,7 @@ import type { Shoutout } from '../api/types.ts';
 import { FeedAuthorLink } from '../components/FeedAuthorLink.tsx';
 import { LoadError } from '../components/LoadError.tsx';
 import { ShoutoutsSkeleton } from '../components/Skeletons.tsx';
+import { TileAge } from '../tiles/TileAge.tsx';
 
 export const SHOUTOUTS_LIMIT = 20;
 
@@ -56,7 +57,10 @@ export function ShoutoutsPage() {
               key={shoutout.id}
               className="flex flex-col gap-1 rounded-lg border border-gray-200 p-3"
             >
-              <FeedAuthorLink author={shoutout.author} showAvatar />
+              <div className="flex items-center justify-between gap-2">
+                <FeedAuthorLink author={shoutout.author} showAvatar />
+                <TileAge createdAt={shoutout.createdAt} className="shrink-0" />
+              </div>
               <p className="text-sm text-gray-900">{shoutout.text}</p>
             </li>
           ))}

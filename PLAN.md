@@ -137,7 +137,7 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
 ## Phase 16 — Tile Age
 
 - **Frontend only:** the feed responses already include `createdAt`
-- Shared `formatTileAge` helper: "just now" (< 1 min), "5m ago", "2h ago", "3d ago"; 7 days or older shows a short date (e.g. "12 Sep")
+- Shared `formatTileAge` helper: "just now" (< 1 min), "5m ago", "2h ago", "3d ago"; 7 days or older shows a short date (e.g. "12 Sep"), with the year added for dates outside the current year (e.g. "20 Dec 2025")
 - Show the age on each Shout-out card and each Bulletin Board tile, in a `<time dateTime=…>` element
 - Tests: `formatTileAge` at each boundary (just under and over 1 min, 1 h, 1 d, 7 d), plus age rendered on both feed pages
 
