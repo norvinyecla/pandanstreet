@@ -34,7 +34,8 @@ export class UsersController {
     private readonly usersService: UsersService,
     config: ConfigService,
   ) {
-    const dataDir = config.get<string>('DATA_DIR') ?? join(process.cwd(), 'data');
+    const dataDir =
+      config.get<string>('DATA_DIR') ?? join(process.cwd(), 'data');
     this.uploadDir = join(dataDir, 'uploads');
     ({ maxBytes: this.maxBytes, allowedTypes: this.allowedTypes } =
       resolveUploadLimits(config));

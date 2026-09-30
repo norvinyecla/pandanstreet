@@ -20,7 +20,9 @@ describe('Tiles (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     app.use(
       session({
         secret: 'test-secret',
@@ -167,7 +169,7 @@ describe('Tiles (e2e)', () => {
       .expect(400);
   });
 
-  it('rejects editing another user\'s tile', async () => {
+  it("rejects editing another user's tile", async () => {
     const alice = await loginAs('Alice');
     const bob = await loginAs('Bob');
     const created = await alice.agent
@@ -182,8 +184,6 @@ describe('Tiles (e2e)', () => {
   });
 
   it('returns 404 fetching tiles for an unknown user', async () => {
-    await request(app.getHttpServer())
-      .get('/tiles/does-not-exist')
-      .expect(404);
+    await request(app.getHttpServer()).get('/tiles/does-not-exist').expect(404);
   });
 });

@@ -53,9 +53,9 @@ describe('FollowsService', () => {
   it('follow throws NotFoundException when the followee does not exist', async () => {
     const alice = await usersService.create(newUser('Alice'));
 
-    await expect(
-      service.follow(alice.id, 'missing'),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.follow(alice.id, 'missing')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('follow throws ConflictException on duplicate follow', async () => {

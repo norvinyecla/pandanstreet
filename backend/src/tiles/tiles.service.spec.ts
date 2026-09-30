@@ -36,10 +36,18 @@ describe('TilesService', () => {
 
     const tile = await service.createText(alice.id, 'Hello world');
 
-    expect(tile).toMatchObject({ type: 'text', text: 'Hello world', userId: alice.id });
+    expect(tile).toMatchObject({
+      type: 'text',
+      text: 'Hello world',
+      userId: alice.id,
+    });
     const rows = await stores.tiles.readAll();
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ userId: alice.id, type: 'text', archived: false });
+    expect(rows[0]).toMatchObject({
+      userId: alice.id,
+      type: 'text',
+      archived: false,
+    });
   });
 
   it('createText throws NotFoundException for an unknown user', async () => {
@@ -120,14 +128,19 @@ describe('TilesService', () => {
 
   it('editText throws BadRequestException for an item tile', async () => {
     const alice = await usersService.create(newUser('Alice'));
-    const tile = await service.createItem(alice.id, '/uploads/p.jpg', 'cap', 'red');
+    const tile = await service.createItem(
+      alice.id,
+      '/uploads/p.jpg',
+      'cap',
+      'red',
+    );
 
     await expect(
       service.editText(tile.id, alice.id, 'nope'),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('editText throws ForbiddenException when editing another user\'s tile', async () => {
+  it("editText throws ForbiddenException when editing another user's tile", async () => {
     const alice = await usersService.create(newUser('Alice'));
     const bob = await usersService.create(newUser('Bob'));
     const tile = await service.createText(alice.id, 'original');
@@ -148,7 +161,12 @@ describe('TilesService', () => {
   it('archive hides a text or item tile but keeps its row', async () => {
     const alice = await usersService.create(newUser('Alice'));
     const text = await service.createText(alice.id, 'Hello');
-    const item = await service.createItem(alice.id, '/uploads/p.jpg', 'Photo', 'red');
+    const item = await service.createItem(
+      alice.id,
+      '/uploads/p.jpg',
+      'Photo',
+      'red',
+    );
 
     await service.archive(text.id, alice.id);
     await service.archive(item.id, alice.id);

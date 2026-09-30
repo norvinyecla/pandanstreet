@@ -37,8 +37,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   const body = (await response.json().catch(() => null)) as
-    | (T & ErrorBody)
-    | null;
+    (T & ErrorBody) | null;
 
   if (!response.ok) {
     const message = Array.isArray(body?.message)

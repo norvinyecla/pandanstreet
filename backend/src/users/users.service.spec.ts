@@ -129,8 +129,8 @@ describe('UsersService', () => {
   });
 
   it('setBio throws NotFoundException for an unknown id', async () => {
-    await expect(
-      service.setBio('missing', 'hello'),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.setBio('missing', 'hello')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });

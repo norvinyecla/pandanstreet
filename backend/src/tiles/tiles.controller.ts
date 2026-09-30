@@ -38,7 +38,8 @@ export class TilesController {
     private readonly tilesService: TilesService,
     config: ConfigService,
   ) {
-    const dataDir = config.get<string>('DATA_DIR') ?? join(process.cwd(), 'data');
+    const dataDir =
+      config.get<string>('DATA_DIR') ?? join(process.cwd(), 'data');
     this.uploadDir = join(dataDir, 'uploads');
     ({ maxBytes: this.maxBytes, allowedTypes: this.allowedTypes } =
       resolveUploadLimits(config));
@@ -52,7 +53,9 @@ export class TilesController {
 
   @UseGuards(SessionAuthGuard)
   @Get('feed/bulletin-board')
-  getBulletinBoard(@CurrentUserId() userId: string): Promise<BulletinItemDto[]> {
+  getBulletinBoard(
+    @CurrentUserId() userId: string,
+  ): Promise<BulletinItemDto[]> {
     return this.tilesService.getBulletinBoard(userId);
   }
 
