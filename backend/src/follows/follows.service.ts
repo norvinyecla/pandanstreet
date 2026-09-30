@@ -5,8 +5,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CSV_STORES } from '../common/csv/csv.module.js';
-import type { CsvStores } from '../common/csv/csv-stores.js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import {
+  isUniqueViolation,
+  isUuid,
+  type BadgeColor,
+} from '../common/database/entities.js';
+import { SUPABASE_CLIENT } from '../common/database/supabase.module.js';
 import { UsersService } from '../users/users.service.js';
 import type { FollowUserDto } from './dto/follow-user.dto.js';
 
@@ -14,10 +19,26 @@ const PLAZA_SAMPLE_SIZE = 3;
 const PLAZA_MIN_CANDIDATES = 2;
 const PLAZA_WINDOW_MS = 24 * 60 * 60 * 1000;
 
+interface UserSummaryRow {
+  id: string;
+  username: string;
+  name: string;
+  photo_url: string;
+}
+
+function toFollowUserDto(row: UserSummaryRow): FollowUserDto {
+  return {
+    id: row.id,
+    username: row.username,
+    name: row.name,
+    photoUrl: row.photo_url,
+  };
+}
+
 @Injectable()
 export class FollowsService {
   constructor(
-    @Inject(CSV_STORES) private readonly stores: CsvStores,
+    @Inject(SUPABASE_CLIENT) private readonly db: SupabaseClient,
     private readonly usersService: UsersService,
   ) {}
 
@@ -27,48 +48,61 @@ export class FollowsService {
     }
     await this.ensureUserExists(followeeId);
 
-    const follows = await this.stores.follows.readAll();
-    const alreadyFollowing = follows.some(
-      (follow) =>
-        follow.followerId === followerId && follow.followeeId === followeeId,
-    );
-    if (alreadyFollowing) {
-      throw new ConflictException('Already following this user');
+    try {
+      await this.db
+        .from('follows')
+        .insert({ follower_id: followerId, followee_id: followeeId })
+        .throwOnError();
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        throw new ConflictException('Already following this user');
+      }
+      throw err;
     }
-
-    await this.stores.follows.append({
-      followerId,
-      followeeId,
-      createdAt: new Date().toISOString(),
-    });
   }
 
   async unfollow(followerId: string, followeeId: string): Promise<void> {
-    const removed = await this.stores.follows.remove(
-      (follow) =>
-        follow.followerId === followerId && follow.followeeId === followeeId,
-    );
-    if (!removed) {
+    if (!isUuid(followeeId)) {
+      throw new NotFoundException('Not following this user');
+    }
+    const { data } = await this.db
+      .from('follows')
+      .delete()
+      .eq('follower_id', followerId)
+      .eq('followee_id', followeeId)
+      .select('follower_id')
+      .throwOnError();
+    if (data.length === 0) {
       throw new NotFoundException('Not following this user');
     }
   }
 
   async listFollowers(userId: string): Promise<FollowUserDto[]> {
     await this.ensureUserExists(userId);
-    const follows = await this.stores.follows.readAll();
-    const followerIds = follows
-      .filter((follow) => follow.followeeId === userId)
-      .map((follow) => follow.followerId);
-    return this.resolveUsers(followerIds);
+    const { data } = await this.db
+      .from('follows')
+      .select(
+        'user:users!follows_follower_id_fkey(id, username, name, photo_url)',
+      )
+      .eq('followee_id', userId)
+      .order('created_at')
+      .throwOnError()
+      .overrideTypes<{ user: UserSummaryRow }[], { merge: false }>();
+    return data.map((row) => toFollowUserDto(row.user));
   }
 
   async listFollowing(userId: string): Promise<FollowUserDto[]> {
     await this.ensureUserExists(userId);
-    const follows = await this.stores.follows.readAll();
-    const followeeIds = follows
-      .filter((follow) => follow.followerId === userId)
-      .map((follow) => follow.followeeId);
-    return this.resolveUsers(followeeIds);
+    const { data } = await this.db
+      .from('follows')
+      .select(
+        'user:users!follows_followee_id_fkey(id, username, name, photo_url)',
+      )
+      .eq('follower_id', userId)
+      .order('created_at')
+      .throwOnError()
+      .overrideTypes<{ user: UserSummaryRow }[], { merge: false }>();
+    return data.map((row) => toFollowUserDto(row.user));
   }
 
   /**
@@ -80,52 +114,50 @@ export class FollowsService {
   async getPlaza(userId: string): Promise<FollowUserDto[]> {
     await this.ensureUserExists(userId);
 
-    const [follows, tiles, itemRecords, users] = await Promise.all([
-      this.stores.follows.readAll(),
-      this.stores.tiles.readAll(),
-      this.stores.tileItem.readAll(),
-      this.stores.users.readAll(),
-    ]);
+    const { data: follows } = await this.db
+      .from('follows')
+      .select('followee_id')
+      .eq('follower_id', userId)
+      .throwOnError()
+      .overrideTypes<{ followee_id: string }[], { merge: false }>();
+    const excludedIds = [userId, ...follows.map((f) => f.followee_id)];
+    const cutoff = new Date(Date.now() - PLAZA_WINDOW_MS).toISOString();
 
-    const followingIds = new Set(
-      follows
-        .filter((follow) => follow.followerId === userId)
-        .map((follow) => follow.followeeId),
-    );
-    const badgeByTileId = new Map(
-      itemRecords.map((record) => [record.tileId, record.badgeColor]),
-    );
-    const cutoff = Date.now() - PLAZA_WINDOW_MS;
+    const { data: tiles } = await this.db
+      .from('tiles')
+      .select(
+        'type, tile_item(badge_color), author:users(id, username, name, photo_url)',
+      )
+      .eq('archived', false)
+      .gte('created_at', cutoff)
+      .not('user_id', 'in', `(${excludedIds.join(',')})`)
+      .throwOnError()
+      .overrideTypes<
+        {
+          type: 'text' | 'item';
+          tile_item: { badge_color: BadgeColor } | null;
+          author: UserSummaryRow;
+        }[],
+        { merge: false }
+      >();
 
-    const qualifyingUserIds = new Set<string>();
+    const candidates = new Map<string, UserSummaryRow>();
     for (const tile of tiles) {
-      if (tile.archived) continue;
-      if (tile.userId === userId || followingIds.has(tile.userId)) continue;
-      if (new Date(tile.createdAt).getTime() < cutoff) continue;
-
-      if (tile.type === 'text') {
-        qualifyingUserIds.add(tile.userId);
-      } else {
-        const badgeColor = badgeByTileId.get(tile.id);
-        if (badgeColor === 'green' || badgeColor === 'yellow') {
-          qualifyingUserIds.add(tile.userId);
-        }
+      const badgeColor = tile.tile_item?.badge_color;
+      if (
+        tile.type === 'text' ||
+        badgeColor === 'green' ||
+        badgeColor === 'yellow'
+      ) {
+        candidates.set(tile.author.id, tile.author);
       }
     }
 
-    if (qualifyingUserIds.size < PLAZA_MIN_CANDIDATES) return [];
+    if (candidates.size < PLAZA_MIN_CANDIDATES) return [];
 
-    const userById = new Map(users.map((user) => [user.id, user]));
-    const candidates = [...qualifyingUserIds]
-      .map((id) => userById.get(id))
-      .filter((user): user is NonNullable<typeof user> => Boolean(user));
-
-    return this.sampleRandom(candidates, PLAZA_SAMPLE_SIZE).map((user) => ({
-      id: user.id,
-      username: user.username,
-      name: user.name,
-      photoUrl: user.photoUrl,
-    }));
+    return this.sampleRandom([...candidates.values()], PLAZA_SAMPLE_SIZE).map(
+      toFollowUserDto,
+    );
   }
 
   private sampleRandom<T>(items: T[], count: number): T[] {
@@ -141,19 +173,5 @@ export class FollowsService {
   private async ensureUserExists(userId: string): Promise<void> {
     const user = await this.usersService.findById(userId);
     if (!user) throw new NotFoundException('User not found');
-  }
-
-  private async resolveUsers(ids: string[]): Promise<FollowUserDto[]> {
-    const users = await Promise.all(
-      ids.map((id) => this.usersService.findById(id)),
-    );
-    return users
-      .filter((user): user is NonNullable<typeof user> => Boolean(user))
-      .map((user) => ({
-        id: user.id,
-        username: user.username,
-        name: user.name,
-        photoUrl: user.photoUrl,
-      }));
   }
 }

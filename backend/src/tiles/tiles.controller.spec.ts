@@ -2,7 +2,10 @@ import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ConfigService } from '@nestjs/config';
-import { createCsvStores } from '../common/csv/csv-stores.js';
+import {
+  createTestSupabase,
+  resetDatabase,
+} from '../common/database/test-database.js';
 import { newUser } from '../users/test-fixtures.js';
 import { UsersService } from '../users/users.service.js';
 import { TilesController } from './tiles.controller.js';
@@ -19,6 +22,7 @@ function photoFile(): Express.Multer.File {
 const itemDto = { caption: 'My cat', badgeColor: 'green' as const };
 
 describe('TilesController item photos', () => {
+  const db = createTestSupabase();
   let dir: string;
   let uploadDir: string;
   let usersService: UsersService;
@@ -28,9 +32,9 @@ describe('TilesController item photos', () => {
   beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), 'tiles-controller-'));
     uploadDir = join(dir, 'uploads');
-    const stores = createCsvStores(dir);
-    usersService = new UsersService(stores);
-    tilesService = new TilesService(stores, usersService);
+    await resetDatabase(db);
+    usersService = new UsersService(db);
+    tilesService = new TilesService(db, usersService);
     const config = {
       get: (key: string) => (key === 'DATA_DIR' ? dir : undefined),
     } as unknown as ConfigService;
