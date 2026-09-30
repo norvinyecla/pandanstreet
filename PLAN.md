@@ -156,6 +156,27 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
 - Check that the full-screen overlay's author link (Phase 17) also works, and that the tap target stays at least 44px
 - Tests: Bulletin Board author link renders the avatar and points to `/users/:id`
 
+## Phase 21 — Theme (DaisyUI Emerald)
+
+- **Frontend only:** add DaisyUI 5 as a dev dependency and enable it in `src/index.css` via `@plugin 'daisyui'` (Tailwind v4, no config file)
+- **Theme:** `emerald`, light mode only; still no dark mode (see Out of Scope). `color-scheme: light only` stays
+- **Pandan green primary:** override emerald's `--color-primary` with a deeper pandan green (starting point `#2F7A3A` with white `--color-primary-content`, about 5.3:1 contrast). The final value must meet WCAG AA (4.5:1) for button text
+- **Colour tokens:** replace hard-coded colour classes with theme tokens across all components, e.g.
+  - `bg-white` → `bg-base-100`, `bg-gray-50/100` → `bg-base-200`
+  - `text-gray-900` → `text-base-content`, `text-gray-500/600/700` → `text-base-content/60`–`/80`
+  - `border-gray-*` → `border-base-300`
+  - red/green success and error styles → `error` / `success` tokens
+  - the body background in `index.css` uses the theme instead of `#fff`
+- **DaisyUI components** where they fit, keeping the current layout and behaviour:
+  - buttons (primary, secondary/outline, destructive, disabled/in-flight) → `btn` variants
+  - text inputs, textareas, file input, badge select → `input` / `textarea` / `file-input` / `select`, with labels kept
+  - Shout-out cards and Bulletin Board tiles → `card`; the tile badge → `badge`
+  - toasts → `alert`; skeletons → `skeleton`; the full-screen overlay keeps its current accessible dialog behaviour
+- Keep tap targets at least 44px and the mobile-first portrait layout
+- Tests: update tests that assert on the old colour classes (`ToastProvider.test.tsx`, `BulletinBoardPage.test.tsx`) to assert on behaviour or the new classes
+- Manual check at mobile width: every page (login, sign-up, profile, edit profile, tile create/edit, Shout-outs, Bulletin Board, overlay, Following, Followers, Plaza), including loading, error and empty states
+- Docs: AGENTS.md tooling line becomes "ReactJS, TailwindCSS + DaisyUI (emerald theme, light mode only)"
+
 ## Out of Scope (for this prototype)
 
 - Dark mode
