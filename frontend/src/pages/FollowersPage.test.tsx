@@ -7,6 +7,7 @@ import { FollowersPage } from './FollowersPage.tsx';
 
 const me = {
   id: 'u1',
+  username: 'ada',
   name: 'Ada',
   photoUrl: '',
   bio: '',
@@ -51,8 +52,8 @@ describe('FollowersPage', () => {
       '/auth/me': () => jsonResponse(me),
       '/follows/u1/followers': () =>
         jsonResponse([
-          { id: 'u2', name: 'Grace', photoUrl: '' },
-          { id: 'u3', name: 'Linus', photoUrl: '' },
+          { id: 'u2', username: 'grace', name: 'Grace', photoUrl: '' },
+          { id: 'u3', username: 'linus', name: 'Linus', photoUrl: '' },
         ]),
     });
 
@@ -61,7 +62,7 @@ describe('FollowersPage', () => {
     expect(await screen.findAllByRole('listitem')).toHaveLength(2);
     expect(screen.getByRole('link', { name: 'Linus' })).toHaveAttribute(
       'href',
-      '/users/u3',
+      '/users/linus',
     );
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
@@ -109,7 +110,9 @@ describe('FollowersPage', () => {
       '/follows/u1/followers': () =>
         ++attempts === 1
           ? jsonResponse({ message: 'Server error' }, 500)
-          : jsonResponse([{ id: 'u2', name: 'Grace', photoUrl: '' }]),
+          : jsonResponse([
+              { id: 'u2', username: 'grace', name: 'Grace', photoUrl: '' },
+            ]),
     });
 
     const user = userEvent.setup();

@@ -156,6 +156,20 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
 - Check that the full-screen overlay's author link (Phase 17) also works, and that the tap target stays at least 44px
 - Tests: Bulletin Board author link renders the avatar and points to `/users/:id`
 
+## Phase 19 — Username Profile URLs
+
+- Profile URLs use the human-readable username instead of the user id: `/users/:username` (e.g. `/users/lovelace`). The id was used before because the display name used to be the login name; since Phase 12 the unique `username` is separate from the display name
+- Old id-based URLs (`/users/<uuid>`) are dropped, not redirected — they show the profile's "User not found" error
+- **Backend:**
+  - `GET /users/by-username/:username` returns the profile (case-insensitive; `404` if unknown), unauthenticated like `GET /users/:id`
+  - `username` added to the profile, follow-list (Following, Followers, Plaza) and feed author DTOs so the frontend can build links
+  - Id-based endpoints (`/users/:id/bio`, `/users/:id/photo`, `/tiles/:userId`, `/follows/...`) are unchanged
+- **Frontend:**
+  - `FeedAuthorLink` links to `/users/:username`; the profile page looks the user up by username, then loads tiles and followers by the returned id
+  - Visiting your own username shows your own profile (edit link, no Follow button)
+  - The profile page shows `@username` under the display name
+- Tests: lookup by username (found, case-insensitive, unknown), `username` in profile DTO; profile page loads by username, own username is the own profile, unknown username shows the error, `@username` shown; author links point to `/users/:username`
+
 ## Out of Scope (for this prototype)
 
 - Dark mode

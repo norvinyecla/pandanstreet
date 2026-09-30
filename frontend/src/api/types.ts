@@ -1,5 +1,6 @@
 export interface UserProfile {
   id: string;
+  username: string;
   name: string;
   photoUrl: string;
   bio: string;
@@ -9,6 +10,7 @@ export interface UserProfile {
 
 export interface FollowUser {
   id: string;
+  username: string;
   name: string;
   photoUrl: string;
 }
@@ -37,6 +39,7 @@ export type Tile = TextTile | ItemTile;
 
 export interface FeedAuthor {
   id: string;
+  username: string;
   name: string;
   photoUrl: string;
 }

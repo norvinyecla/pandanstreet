@@ -150,6 +150,25 @@ describe('Users & Auth (e2e)', () => {
     expect(res.body.name).toBe('Turing');
   });
 
+  it('fetches a user profile by username without authentication', async () => {
+    const signup = await request(app.getHttpServer())
+      .post('/auth/signup')
+      .send(signupBody('Hopper'))
+      .expect(201);
+
+    const res = await request(app.getHttpServer())
+      .get(`/users/by-username/${signup.body.username}`)
+      .expect(200);
+    expect(res.body.id).toBe(signup.body.id);
+    expect(res.body.name).toBe('Hopper');
+  });
+
+  it('returns 404 for an unknown username', async () => {
+    await request(app.getHttpServer())
+      .get('/users/by-username/nobody')
+      .expect(404);
+  });
+
   it('returns 404 for an unknown user profile', async () => {
     await request(app.getHttpServer()).get('/users/does-not-exist').expect(404);
   });

@@ -90,6 +90,7 @@ describe('UsersService', () => {
     const profile = await service.getProfile(alice.id);
     expect(profile).toEqual({
       id: alice.id,
+      username: 'alice',
       name: 'Alice',
       photoUrl: '',
       bio: '',
@@ -100,6 +101,22 @@ describe('UsersService', () => {
 
   it('getProfile throws NotFoundException for an unknown id', async () => {
     await expect(service.getProfile('missing')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('getProfileByUsername returns the profile for a username, ignoring case', async () => {
+    const user = await service.signUp('lovelace', 'Ada', 'engine1843');
+
+    const profile = await service.getProfileByUsername('LoveLace');
+
+    expect(profile.id).toBe(user.id);
+    expect(profile.username).toBe('lovelace');
+    expect(profile).not.toHaveProperty('passwordHash');
+  });
+
+  it('getProfileByUsername throws NotFoundException for an unknown username', async () => {
+    await expect(service.getProfileByUsername('nobody')).rejects.toBeInstanceOf(
       NotFoundException,
     );
   });

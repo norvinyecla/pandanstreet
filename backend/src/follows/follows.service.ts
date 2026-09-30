@@ -122,6 +122,7 @@ export class FollowsService {
 
     return this.sampleRandom(candidates, PLAZA_SAMPLE_SIZE).map((user) => ({
       id: user.id,
+      username: user.username,
       name: user.name,
       photoUrl: user.photoUrl,
     }));
@@ -150,6 +151,7 @@ export class FollowsService {
       .filter((user): user is NonNullable<typeof user> => Boolean(user))
       .map((user) => ({
         id: user.id,
+        username: user.username,
         name: user.name,
         photoUrl: user.photoUrl,
       }));

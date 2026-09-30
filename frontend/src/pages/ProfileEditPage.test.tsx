@@ -7,6 +7,7 @@ import { ProfileEditPage } from './ProfileEditPage.tsx';
 
 const me = {
   id: 'u1',
+  username: 'ada',
   name: 'Ada',
   photoUrl: '',
   bio: 'Old bio.',

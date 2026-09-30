@@ -8,6 +8,7 @@ import { TileEditPage } from './TileEditPage.tsx';
 
 const me = {
   id: 'u1',
+  username: 'ada',
   name: 'Ada',
   photoUrl: '',
   bio: '',

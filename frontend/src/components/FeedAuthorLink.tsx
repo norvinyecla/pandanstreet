@@ -12,7 +12,7 @@ export function FeedAuthorLink({
 }) {
   return (
     <Link
-      to={`/users/${author.id}`}
+      to={`/users/${encodeURIComponent(author.username)}`}
       className="flex min-h-11 min-w-0 items-center gap-2 text-sm font-medium text-gray-900"
     >
       {showAvatar && (
