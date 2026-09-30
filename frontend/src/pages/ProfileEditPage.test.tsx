@@ -39,15 +39,16 @@ describe('ProfileEditPage', () => {
       vi.fn((url: string, init?: RequestInit) => {
         const path = new URL(url).pathname;
         if (path === '/auth/me') {
-          return Promise.resolve(new Response(JSON.stringify(me), { status: 200 }));
+          return Promise.resolve(
+            new Response(JSON.stringify(me), { status: 200 }),
+          );
         }
         if (path === '/users/u1/bio' && init?.method === 'PATCH') {
           patchCalls.push(init.body);
           return Promise.resolve(
-            new Response(
-              JSON.stringify({ ...me, bio: 'New bio.' }),
-              { status: 200 },
-            ),
+            new Response(JSON.stringify({ ...me, bio: 'New bio.' }), {
+              status: 200,
+            }),
           );
         }
         return Promise.reject(new Error(`Unexpected fetch to ${url}`));

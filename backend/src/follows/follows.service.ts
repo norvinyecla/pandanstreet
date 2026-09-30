@@ -148,6 +148,10 @@ export class FollowsService {
     );
     return users
       .filter((user): user is NonNullable<typeof user> => Boolean(user))
-      .map((user) => ({ id: user.id, name: user.name, photoUrl: user.photoUrl }));
+      .map((user) => ({
+        id: user.id,
+        name: user.name,
+        photoUrl: user.photoUrl,
+      }));
   }
 }

@@ -37,7 +37,13 @@ export class TilesService {
     });
     await this.stores.tileText.append({ tileId: tile.id, text });
 
-    return { id: tile.id, userId, type: 'text', createdAt: tile.createdAt, text };
+    return {
+      id: tile.id,
+      userId,
+      type: 'text',
+      createdAt: tile.createdAt,
+      text,
+    };
   }
 
   async createItem(
@@ -74,7 +80,11 @@ export class TilesService {
     };
   }
 
-  async editText(tileId: string, userId: string, text: string): Promise<TileDto> {
+  async editText(
+    tileId: string,
+    userId: string,
+    text: string,
+  ): Promise<TileDto> {
     const tiles = await this.stores.tiles.readAll();
     const tile = tiles.find((t) => t.id === tileId);
     if (!tile) throw new NotFoundException('Tile not found');
@@ -90,7 +100,13 @@ export class TilesService {
       (record) => ({ ...record, text }),
     );
 
-    return { id: tile.id, userId, type: 'text', createdAt: tile.createdAt, text };
+    return {
+      id: tile.id,
+      userId,
+      type: 'text',
+      createdAt: tile.createdAt,
+      text,
+    };
   }
 
   /** Removes a tile from view by archiving it; the row is kept, per the data model rules. */
@@ -179,7 +195,11 @@ export class TilesService {
           id: tile.id,
           createdAt: tile.createdAt,
           text: record.text,
-          author: { id: author.id, name: author.name, photoUrl: author.photoUrl },
+          author: {
+            id: author.id,
+            name: author.name,
+            photoUrl: author.photoUrl,
+          },
         };
       })
       .filter((dto): dto is ShoutoutDto => dto !== undefined);
@@ -217,7 +237,11 @@ export class TilesService {
           photoUrl: record.photoUrl,
           caption: record.caption,
           badgeColor: record.badgeColor,
-          author: { id: author.id, name: author.name, photoUrl: author.photoUrl },
+          author: {
+            id: author.id,
+            name: author.name,
+            photoUrl: author.photoUrl,
+          },
         };
       })
       .filter((dto): dto is BulletinItemDto => dto !== undefined);

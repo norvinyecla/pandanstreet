@@ -20,7 +20,9 @@ describe('Follows (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     app.use(
       session({
         secret: 'test-secret',
@@ -49,9 +51,7 @@ describe('Follows (e2e)', () => {
 
   it('rejects follow without a session', async () => {
     const other = await loginAs('Bob');
-    await request(app.getHttpServer())
-      .post(`/follows/${other.id}`)
-      .expect(401);
+    await request(app.getHttpServer()).post(`/follows/${other.id}`).expect(401);
   });
 
   it('follows a user and updates counts on both profiles', async () => {

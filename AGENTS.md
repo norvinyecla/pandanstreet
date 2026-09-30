@@ -20,7 +20,7 @@ Monorepo layout:
 - **Frontend:** ReactJS, TailwindCSS (light mode only for now)
 - **Backend:** NestJS
 - **Data:** local CSV files under `backend/data/`. Uploaded photos are also saved to disk under `backend/data/` (e.g. `backend/data/uploads/`), referenced by path from the CSVs.
-- **Formatting:** Prettier, default config (2-space indent, semicolons, single quotes). Run before committing.
+- **Formatting:** Prettier, configured in the root `.prettierrc` (2-space indent, semicolons, single quotes, trailing commas). Run `yarn format` at the repo root before committing; CI fails PRs that don't pass `yarn format:check`.
 
 ## Running the App
 

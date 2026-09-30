@@ -89,3 +89,4 @@ Phases 0–14 of [PLAN.md](PLAN.md) implemented; Phases 15–18 (polish) in prog
 
 - **Backend:** CSV data layer, session-based username + password auth (sign-up, login, scrypt-hashed passwords), profiles (bio, photo upload), follows, Text/Item tiles (create, edit Text, archive), Shout-outs and Bulletin Board feeds, Plaza discovery, and cleanup of orphaned upload photos (replaced profile photos, failed uploads).
 - **Frontend:** sign-up and login, profile view/edit (with a default sprout avatar for profiles without a photo), tile creation/editing/deletion, Shout-outs, Bulletin Board, Following/Followers pages, and Plaza.
+- **CI:** GitHub Actions runs a Prettier check plus lint, type check, tests (unit + backend e2e), and build for both packages on every PR to `main`.
