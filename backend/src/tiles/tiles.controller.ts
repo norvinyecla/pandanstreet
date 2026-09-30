@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   BadRequestException,
@@ -20,6 +18,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { CurrentUserId } from '../common/auth/current-user-id.decorator.js';
 import { SessionAuthGuard } from '../common/auth/session-auth.guard.js';
+import { deletePhoto, savePhoto } from '../common/uploads/photo-files.js';
 import { resolveUploadLimits } from '../users/upload.config.js';
 import { CreateItemTileDto } from './dto/create-item-tile.dto.js';
 import { CreateTextTileDto } from './dto/create-text-tile.dto.js';
@@ -38,7 +37,8 @@ export class TilesController {
     private readonly tilesService: TilesService,
     config: ConfigService,
   ) {
-    const dataDir = config.get<string>('DATA_DIR') ?? join(process.cwd(), 'data');
+    const dataDir =
+      config.get<string>('DATA_DIR') ?? join(process.cwd(), 'data');
     this.uploadDir = join(dataDir, 'uploads');
     ({ maxBytes: this.maxBytes, allowedTypes: this.allowedTypes } =
       resolveUploadLimits(config));
@@ -52,7 +52,9 @@ export class TilesController {
 
   @UseGuards(SessionAuthGuard)
   @Get('feed/bulletin-board')
-  getBulletinBoard(@CurrentUserId() userId: string): Promise<BulletinItemDto[]> {
+  getBulletinBoard(
+    @CurrentUserId() userId: string,
+  ): Promise<BulletinItemDto[]> {
     return this.tilesService.getBulletinBoard(userId);
   }
 
@@ -91,16 +93,18 @@ export class TilesController {
       throw new BadRequestException('Photo must be one of: jpg, png, webp');
     }
 
-    const filename = `${randomUUID()}.${extension}`;
-    await mkdir(this.uploadDir, { recursive: true });
-    await writeFile(join(this.uploadDir, filename), file.buffer);
-
-    return this.tilesService.createItem(
-      userId,
-      `/uploads/${filename}`,
-      dto.caption,
-      dto.badgeColor,
-    );
+    const photoUrl = await savePhoto(this.uploadDir, file.buffer, extension);
+    try {
+      return await this.tilesService.createItem(
+        userId,
+        photoUrl,
+        dto.caption,
+        dto.badgeColor,
+      );
+    } catch (err) {
+      await deletePhoto(this.uploadDir, photoUrl);
+      throw err;
+    }
   }
 
   @UseGuards(SessionAuthGuard)

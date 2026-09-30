@@ -66,13 +66,21 @@ export class UsersService {
     return user;
   }
 
-  async setPhotoUrl(id: string, photoUrl: string): Promise<UserRecord> {
+  /** Sets the user's photo and returns the path it replaced ('' if none). */
+  async setPhotoUrl(
+    id: string,
+    photoUrl: string,
+  ): Promise<{ user: UserRecord; previousPhotoUrl: string }> {
+    let previousPhotoUrl = '';
     const updated = await this.stores.users.update(
       (user) => user.id === id,
-      (user) => ({ ...user, photoUrl }),
+      (user) => {
+        previousPhotoUrl = user.photoUrl;
+        return { ...user, photoUrl };
+      },
     );
     if (!updated) throw new NotFoundException('User not found');
-    return updated;
+    return { user: updated, previousPhotoUrl };
   }
 
   async setBio(id: string, bio: string): Promise<UserRecord> {

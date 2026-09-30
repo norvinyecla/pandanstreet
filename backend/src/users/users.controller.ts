@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   BadRequestException,
@@ -19,6 +17,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { CurrentUserId } from '../common/auth/current-user-id.decorator.js';
 import { SessionAuthGuard } from '../common/auth/session-auth.guard.js';
+import { deletePhoto, savePhoto } from '../common/uploads/photo-files.js';
 import { UpdateBioDto } from './dto/update-bio.dto.js';
 import type { UserProfileDto } from './dto/user-profile.dto.js';
 import { UsersService } from './users.service.js';
@@ -34,7 +33,8 @@ export class UsersController {
     private readonly usersService: UsersService,
     config: ConfigService,
   ) {
-    const dataDir = config.get<string>('DATA_DIR') ?? join(process.cwd(), 'data');
+    const dataDir =
+      config.get<string>('DATA_DIR') ?? join(process.cwd(), 'data');
     this.uploadDir = join(dataDir, 'uploads');
     ({ maxBytes: this.maxBytes, allowedTypes: this.allowedTypes } =
       resolveUploadLimits(config));
@@ -83,11 +83,18 @@ export class UsersController {
       throw new BadRequestException('Photo must be one of: jpg, png, webp');
     }
 
-    const filename = `${randomUUID()}.${extension}`;
-    await mkdir(this.uploadDir, { recursive: true });
-    await writeFile(join(this.uploadDir, filename), file.buffer);
-
-    await this.usersService.setPhotoUrl(id, `/uploads/${filename}`);
+    const photoUrl = await savePhoto(this.uploadDir, file.buffer, extension);
+    let previousPhotoUrl: string;
+    try {
+      ({ previousPhotoUrl } = await this.usersService.setPhotoUrl(
+        id,
+        photoUrl,
+      ));
+    } catch (err) {
+      await deletePhoto(this.uploadDir, photoUrl);
+      throw err;
+    }
+    await deletePhoto(this.uploadDir, previousPhotoUrl);
     return this.usersService.getProfile(id);
   }
 }

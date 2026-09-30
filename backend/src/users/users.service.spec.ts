@@ -106,11 +106,21 @@ describe('UsersService', () => {
 
   it('setPhotoUrl updates the stored photo path', async () => {
     const user = await service.create(newUser('Dana'));
-    const updated = await service.setPhotoUrl(user.id, '/uploads/dana.jpg');
-    expect(updated.photoUrl).toBe('/uploads/dana.jpg');
+    const first = await service.setPhotoUrl(user.id, '/uploads/dana.jpg');
+    expect(first.user.photoUrl).toBe('/uploads/dana.jpg');
+    expect(first.previousPhotoUrl).toBe('');
 
     const profile = await service.getProfile(user.id);
     expect(profile.photoUrl).toBe('/uploads/dana.jpg');
+  });
+
+  it('setPhotoUrl returns the photo path it replaced', async () => {
+    const user = await service.create(newUser('Dana'));
+    await service.setPhotoUrl(user.id, '/uploads/old.jpg');
+
+    const second = await service.setPhotoUrl(user.id, '/uploads/new.jpg');
+    expect(second.previousPhotoUrl).toBe('/uploads/old.jpg');
+    expect(second.user.photoUrl).toBe('/uploads/new.jpg');
   });
 
   it('setPhotoUrl throws NotFoundException for an unknown id', async () => {
@@ -129,8 +139,8 @@ describe('UsersService', () => {
   });
 
   it('setBio throws NotFoundException for an unknown id', async () => {
-    await expect(
-      service.setBio('missing', 'hello'),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.setBio('missing', 'hello')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });
