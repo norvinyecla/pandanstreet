@@ -62,6 +62,43 @@ describe('BulletinBoardPage', () => {
     );
   });
 
+  it("renders the author's avatar inside a link to their profile", async () => {
+    mockFeed(
+      Promise.resolve(
+        new Response(
+          JSON.stringify([
+            {
+              ...makeItem(1),
+              author: { id: 'u3', name: 'Ada', photoUrl: '/uploads/ada.png' },
+            },
+          ]),
+        ),
+      ),
+    );
+
+    renderPage();
+
+    const avatar = await screen.findByAltText("Ada's profile photo");
+    expect(avatar).toHaveAttribute(
+      'src',
+      'http://localhost:3001/uploads/ada.png',
+    );
+    const link = avatar.closest('a');
+    expect(link).toHaveAttribute('href', '/users/u3');
+    expect(link).toHaveTextContent('Ada');
+    expect(link).toHaveClass('min-h-11');
+  });
+
+  it('renders the default avatar for authors without a photo', async () => {
+    mockFeed(Promise.resolve(new Response(JSON.stringify([makeItem(1)]))));
+
+    renderPage();
+
+    const link = await screen.findByRole('link', { name: 'Grace' });
+    expect(link).toHaveAttribute('href', '/users/u2');
+    expect(within(link).getByTestId('default-avatar')).toBeInTheDocument();
+  });
+
   it(`shows at most ${BULLETIN_BOARD_LIMIT} item tiles`, async () => {
     const items = Array.from({ length: BULLETIN_BOARD_LIMIT + 4 }, (_, i) =>
       makeItem(i),
@@ -182,6 +219,17 @@ describe('BulletinBoardPage', () => {
       expect(
         within(dialog).getByRole('button', { name: 'Close' }),
       ).toHaveFocus();
+    });
+
+    it("shows the author's avatar in a link with a 44px tap target", async () => {
+      await openSecondTile();
+
+      const link = within(screen.getByRole('dialog')).getByRole('link', {
+        name: 'Ada',
+      });
+      expect(link).toHaveAttribute('href', '/users/u3');
+      expect(link).toHaveClass('min-h-11');
+      expect(within(link).getByTestId('default-avatar')).toBeInTheDocument();
     });
 
     it('closes via the Close button and returns focus to the tile', async () => {

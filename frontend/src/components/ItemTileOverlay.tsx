@@ -79,7 +79,7 @@ export function ItemTileOverlay({
             {item.caption}
           </h2>
           <TileAge createdAt={item.createdAt} />
-          <FeedAuthorLink author={item.author} />
+          <FeedAuthorLink author={item.author} showAvatar />
         </div>
       </div>
     </div>
