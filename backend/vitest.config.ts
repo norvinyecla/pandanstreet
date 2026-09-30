@@ -8,6 +8,9 @@ export default defineConfig({
   test: {
     globals: true,
     root: './',
+    setupFiles: ['./test/load-env.ts'],
+    // Test files share one local database, so run them one at a time.
+    fileParallelism: false,
     include: ['**/*.spec.ts'],
   },
 });

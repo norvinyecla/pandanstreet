@@ -6,6 +6,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import session from 'express-session';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
+import {
+  createTestSupabase,
+  resetDatabase,
+} from '../src/common/database/test-database.js';
 
 const PASSWORD = 'password123';
 
@@ -18,6 +22,7 @@ describe('Users & Auth (e2e)', () => {
   let dir: string;
 
   beforeEach(async () => {
+    await resetDatabase(createTestSupabase());
     dir = await mkdtemp(join(tmpdir(), 'users-e2e-'));
     process.env.DATA_DIR = dir;
 
