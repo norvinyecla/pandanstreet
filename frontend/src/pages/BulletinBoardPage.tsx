@@ -5,6 +5,7 @@ import { FeedAuthorLink } from '../components/FeedAuthorLink.tsx';
 import { LoadError } from '../components/LoadError.tsx';
 import { BulletinBoardSkeleton } from '../components/Skeletons.tsx';
 import { BadgeLozenge } from '../components/TileGrid.tsx';
+import { TileAge } from '../tiles/TileAge.tsx';
 
 export const BULLETIN_BOARD_LIMIT = 21;
 
@@ -63,6 +64,7 @@ export function BulletinBoardPage() {
                 <BadgeLozenge color={item.badgeColor} />
               </div>
               <p className="truncate text-xs text-gray-900">{item.caption}</p>
+              <TileAge createdAt={item.createdAt} className="truncate" />
               <FeedAuthorLink author={item.author} />
             </li>
           ))}
