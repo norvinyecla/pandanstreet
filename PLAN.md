@@ -116,6 +116,46 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
 - Shared `ProfileAvatar` component renders either the uploaded photo or the default, used on the profile page, edit-profile page, and follow lists (Following, Followers, Plaza)
 - Tests: `ProfileAvatar` renders the photo with alt text when present, and the default avatar when not
 
+## Phase 14 — Delete Orphaned Photos
+
+- **Backend only:** remove upload files under `backend/data/uploads/` that nothing references any more
+  - Replacing a profile photo deletes the previous file once the new `photoUrl` has been saved
+  - If creating an Item tile fails after its photo was written to disk (e.g. a CSV write error), delete the file
+  - Photos of archived Item tiles are **kept**: an archived tile is still a record in `tiles.csv`, so its photo isn't orphaned
+- A failure to delete a file is logged and never fails the request
+- Tests: old profile photo removed on replace, first upload (no previous photo) is fine, a file left over from a failed tile creation is removed, archiving a tile keeps its photo, and a failed deletion doesn't fail the request
+
+## Phase 15 — Loading & Error States
+
+- **Frontend only:**
+  - **Retry:** every page that loads data (profile, feeds, follow lists, Plaza, edit pages) shows a "Try again" button on error that re-runs the request
+  - **Skeletons:** replace the plain "Loading…" text with grey placeholder shapes that match each page's layout (tile grid, shout-out cards, 3-column board, user list rows)
+  - **Expired session:** a `401` from any request made after login clears the auth state and sends the user to `/login`. This excludes the login/sign-up requests themselves, which keep showing their own error.
+  - **Double-submit guard:** buttons stay disabled while their request is in flight: follow/unfollow, post tile, edit tile, delete tile, save profile, login, sign-up
+- Tests: retry re-runs the request and renders the data, skeleton appears while loading, a `401` redirects to `/login`, and a button is disabled while its request is pending
+
+## Phase 16 — Tile Age
+
+- **Frontend only:** the feed responses already include `createdAt`
+- Shared `formatTileAge` helper: "just now" (< 1 min), "5m ago", "2h ago", "3d ago"; 7 days or older shows a short date (e.g. "12 Sep")
+- Show the age on each Shout-out card and each Bulletin Board tile, in a `<time dateTime=…>` element
+- Tests: `formatTileAge` at each boundary (just under and over 1 min, 1 h, 1 d, 7 d), plus age rendered on both feed pages
+
+## Phase 17 — Full-Screen Item Tile
+
+- **Frontend only:** tapping an Item tile's photo on the Bulletin Board opens a full-screen overlay on the same page (not a new route)
+- The overlay shows the photo (`object-contain`), caption, badge, author link and age
+- Closes via a close button, the Escape key, or a tap on the backdrop; the grid's scroll position is kept
+- Accessible: the photo trigger is a `<button>`; the overlay is a modal dialog with a label, focus moves into it on open and returns to the tile on close
+- Tests: opens with the right tile's content, closes on button, Escape and backdrop
+
+## Phase 18 — Author Links Everywhere
+
+- **Frontend only:** names in Shout-outs, the Bulletin Board, Following, Followers and Plaza already link to the author's profile via `FeedAuthorLink`
+- Remaining gap: Bulletin Board tiles show the author's name with no avatar; add the small avatar so it matches the other lists (within the 3-column width)
+- Check that the full-screen overlay's author link (Phase 17) also works, and that the tap target stays at least 44px
+- Tests: Bulletin Board author link renders the avatar and points to `/users/:id`
+
 ## Out of Scope (for this prototype)
 
 - Dark mode
