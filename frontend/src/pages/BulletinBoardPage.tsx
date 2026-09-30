@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError, resolveAssetUrl } from '../api/client.ts';
 import type { BulletinItem } from '../api/types.ts';
 import { FeedAuthorLink } from '../components/FeedAuthorLink.tsx';
+import { ItemTileOverlay } from '../components/ItemTileOverlay.tsx';
 import { LoadError } from '../components/LoadError.tsx';
 import { BulletinBoardSkeleton } from '../components/Skeletons.tsx';
 import { BadgeLozenge } from '../components/TileGrid.tsx';
@@ -13,6 +14,8 @@ export function BulletinBoardPage() {
   const [items, setItems] = useState<BulletinItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [openItem, setOpenItem] = useState<BulletinItem | null>(null);
+  const closeOverlay = useCallback(() => setOpenItem(null), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,11 +58,18 @@ export function BulletinBoardPage() {
         <ul className="grid grid-cols-3 gap-2">
           {items.map((item) => (
             <li key={item.id} className="flex min-w-0 flex-col gap-1">
-              <img
-                src={resolveAssetUrl(item.photoUrl)}
-                alt={item.caption}
-                className="aspect-square w-full rounded-md bg-gray-100 object-cover"
-              />
+              <button
+                type="button"
+                aria-label={`View ${item.caption} full screen`}
+                onClick={() => setOpenItem(item)}
+                className="block w-full rounded-md"
+              >
+                <img
+                  src={resolveAssetUrl(item.photoUrl)}
+                  alt={item.caption}
+                  className="aspect-square w-full rounded-md bg-gray-100 object-cover"
+                />
+              </button>
               <div className="self-start">
                 <BadgeLozenge color={item.badgeColor} />
               </div>
@@ -70,6 +80,7 @@ export function BulletinBoardPage() {
           ))}
         </ul>
       )}
+      {openItem && <ItemTileOverlay item={openItem} onClose={closeOverlay} />}
     </div>
   );
 }

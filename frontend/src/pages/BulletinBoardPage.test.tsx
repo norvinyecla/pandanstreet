@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -134,5 +134,80 @@ describe('BulletinBoardPage', () => {
 
     expect(await screen.findByAltText('Item 1')).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  describe('full-screen item tile', () => {
+    async function openSecondTile() {
+      mockFeed(
+        Promise.resolve(
+          new Response(
+            JSON.stringify([
+              makeItem(1),
+              {
+                ...makeItem(2),
+                createdAt: new Date(
+                  Date.now() - 2 * 60 * 60 * 1000,
+                ).toISOString(),
+                badgeColor: 'red',
+                author: { id: 'u3', name: 'Ada', photoUrl: '' },
+              },
+            ]),
+          ),
+        ),
+      );
+      const user = userEvent.setup();
+      renderPage();
+      const trigger = await screen.findByRole('button', {
+        name: 'View Item 2 full screen',
+      });
+      await user.click(trigger);
+      return { user, trigger };
+    }
+
+    it("opens with the tapped tile's photo, caption, badge, age, and author", async () => {
+      await openSecondTile();
+
+      const dialog = screen.getByRole('dialog', { name: 'Item 2' });
+      expect(within(dialog).getByAltText('Item 2')).toHaveAttribute(
+        'src',
+        'http://localhost:3001/uploads/2.png',
+      );
+      expect(within(dialog).getByText('Hello!')).toBeInTheDocument();
+      const age = within(dialog).getByText('2h ago');
+      expect(age.tagName).toBe('TIME');
+      expect(within(dialog).getByRole('link', { name: 'Ada' })).toHaveAttribute(
+        'href',
+        '/users/u3',
+      );
+      expect(
+        within(dialog).getByRole('button', { name: 'Close' }),
+      ).toHaveFocus();
+    });
+
+    it('closes via the Close button and returns focus to the tile', async () => {
+      const { user, trigger } = await openSecondTile();
+
+      await user.click(screen.getByRole('button', { name: 'Close' }));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
+    });
+
+    it('closes via the Escape key', async () => {
+      const { user, trigger } = await openSecondTile();
+
+      await user.keyboard('{Escape}');
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
+    });
+
+    it('closes via a tap on the backdrop', async () => {
+      const { user } = await openSecondTile();
+
+      await user.click(screen.getByTestId('item-overlay-backdrop'));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
   });
 });
