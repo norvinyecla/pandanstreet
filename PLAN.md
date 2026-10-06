@@ -216,6 +216,25 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
 - CI starts the test stack with `yarn db:test:start` instead of the dev one
 - Docs: AGENTS.md (Running the App, Verification) and README note the test database
 
+## Phase 23 — Persistent Sessions
+
+- **Backend only:** sessions survive a backend restart (including every `nest start --watch` reload), so users stay logged in. Today `express-session` uses its default in-memory store, which loses every session on restart
+- **Schema:** new migration adding a `sessions` table: `sid` (text, primary key), `sess` (jsonb), `expires_at` (timestamptz, indexed). RLS on with no policies, like the other tables
+- **Store:** a small custom `SupabaseSessionStore` (extends `session.Store` from `express-session`) in `backend/src/common/auth/`, using the `SUPABASE_CLIENT` provider. No new dependency
+  - `get`: returns the session, or nothing if the row is missing or expired
+  - `set`: upserts the row, with `expires_at` from the session cookie's expiry (7-day `maxAge`, unchanged), and deletes expired rows
+  - `destroy`: deletes the row (logout)
+  - `touch`: updates `expires_at`
+  - Database errors go to the callback, so the request fails with the standard error response and is never treated as logged out
+- **Wiring:** move the session setup out of `main.ts` into a shared helper that takes the Supabase client, so `main.ts` and the e2e specs (which currently copy the session config) use the same store
+- `resetDatabase` in tests also clears `sessions`
+- Session regeneration on login/sign-up and the cookie settings are unchanged
+- Tests: store round-trip (set, then get), an expired session comes back empty, destroy removes the row, touch moves the expiry forward, set prunes expired rows; e2e: a session cookie still works with a fresh app instance (simulated restart), and logout removes the session
+- **Docs:**
+  - README Data Model adds `sessions`; the Login decision notes that sessions are stored in Postgres
+  - README Tech Stack frontend line becomes "ReactJS + TailwindCSS + DaisyUI (emerald theme, light mode only)" to match AGENTS.md (missed in Phase 21)
+  - Fix the stale `test-database.ts` comment, which still points at `yarn db:start` and `backend/.env` instead of the test stack
+
 ## Out of Scope (for this prototype)
 
 - Dark mode
