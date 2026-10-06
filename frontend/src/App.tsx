@@ -6,6 +6,7 @@ import { BulletinBoardPage } from './pages/BulletinBoardPage.tsx';
 import { FollowersPage } from './pages/FollowersPage.tsx';
 import { FollowingPage } from './pages/FollowingPage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
+import { NotFoundPage } from './pages/NotFoundPage.tsx';
 import { PlazaPage } from './pages/PlazaPage.tsx';
 import { ProfileEditPage } from './pages/ProfileEditPage.tsx';
 import { ProfilePage } from './pages/ProfilePage.tsx';
@@ -95,6 +96,7 @@ function App() {
                   </RequireAuth>
                 }
               />
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </AppShell>
         </ToastProvider>

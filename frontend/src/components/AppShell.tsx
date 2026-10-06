@@ -33,7 +33,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button
             type="button"
             onClick={handleLogout}
-            className="min-h-11 min-w-11 px-3 text-sm font-medium text-base-content/70"
+            className="min-h-11 min-w-11 cursor-pointer px-3 text-sm font-medium text-base-content/70 hover:underline"
           >
             Log out
           </button>
