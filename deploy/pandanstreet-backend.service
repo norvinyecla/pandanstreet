@@ -1,0 +1,21 @@
+# Installed by deploy/bootstrap.sh. Runs the release that /opt/pandanstreet/current points at.
+[Unit]
+Description=Pandan Street backend (NestJS)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=pandanstreet
+Group=pandanstreet
+WorkingDirectory=/opt/pandanstreet/current/backend
+EnvironmentFile=/etc/pandanstreet/backend.env
+ExecStart=/usr/bin/node dist/main.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

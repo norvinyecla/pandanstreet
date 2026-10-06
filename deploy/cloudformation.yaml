@@ -1,0 +1,380 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Pandan Street production — one EC2 instance (nginx + NestJS) behind Cloudflare,
+  photos in S3, database on hosted Supabase. Code ships from GitHub Actions via
+  OIDC + SSM, so no AWS keys or SSH access exist anywhere.
+
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
+  com.aws.cloudformation.Context:
+    arch: Cloudflare (TLS, proxy) -> EIP -> EC2 nginx:443 -> static frontend | api. -> node:3001 -> hosted Supabase; browser loads photos straight from S3
+    must:
+      - instance holds no state (DB hosted, photos in S3, releases in S3) -> replacing it is safe; re-run the deploy workflow afterwards
+      - secrets live in SSM Parameter Store under ConfigPath, never in this template
+    ref:
+      - at: README.md#deployment-aws-ec2
+        has: one-time setup checklist, update and teardown steps
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: { default: Site }
+        Parameters: [DomainName, ConfigPath]
+      - Label: { default: Instance }
+        Parameters: [ImageId, InstanceType]
+      - Label: { default: GitHub deploys }
+        Parameters: [GitHubRepository, GitHubOidcProviderArn]
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: pandanstreet.trade
+    AllowedPattern: '^[a-z0-9-]+(\.[a-z0-9-]+)+$'
+    Description: Apex domain. The frontend is served here and the API at api.<domain>.
+  ConfigPath:
+    Type: String
+    Default: /pandanstreet/prod
+    AllowedPattern: '^(/[A-Za-z0-9_.-]+)+$'
+    Description: SSM Parameter Store path holding the backend secrets and the Cloudflare origin certificate.
+  ImageId:
+    Type: AWS::EC2::Image::Id
+    Description: Ubuntu 24.04 arm64 AMI (see README). Pinned so stack updates never replace the instance by surprise.
+  InstanceType:
+    Type: String
+    Default: t4g.micro
+    AllowedValues: [t4g.micro, t4g.small, t4g.medium]
+    Description: Arm (Graviton) instance size.
+  GitHubRepository:
+    Type: String
+    Default: norvinyecla/pandanstreet
+    AllowedPattern: '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
+    Description: owner/repo allowed to deploy (main branch only).
+  GitHubOidcProviderArn:
+    Type: String
+    Default: ''
+    Description: ARN of an existing GitHub Actions OIDC provider in this account. Leave empty to create one.
+
+Conditions:
+  CreateGitHubOidcProvider: !Equals [!Ref GitHubOidcProviderArn, '']
+
+Resources:
+  # ---------------------------------------------------------------- storage
+
+  PhotosBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: user photos (profile + Item tiles); browser loads them directly via <img>, so photos/* is publicly readable. No versioning — the app deletes replaced photos on purpose
+        must:
+          - only BlockPublicPolicy/RestrictPublicBuckets relaxed (for the public-read policy); ACLs stay blocked
+          - URLs are stored in the DB -> bucket must never be replaced or renamed
+    Properties:
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: false
+        RestrictPublicBuckets: false
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  PhotosBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref PhotosBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: PublicReadPhotos
+            Effect: Allow
+            Principal: '*'
+            Action: s3:GetObject
+            Resource: !Sub '${PhotosBucket.Arn}/photos/*'
+          - Sid: HttpsOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt PhotosBucket.Arn
+              - !Sub '${PhotosBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+
+  ReleasesBucket:
+    Type: AWS::S3::Bucket
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: build archives uploaded by GitHub Actions and pulled by the instance; rebuildable from git, so no Retain/versioning
+    Properties:
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireOldReleases
+            Status: Enabled
+            ExpirationInDays: 30
+
+  ReleasesBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ReleasesBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: HttpsOnly
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt ReleasesBucket.Arn
+              - !Sub '${ReleasesBucket.Arn}/*'
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+
+  # ---------------------------------------------------------------- network
+
+  CloudflarePrefixList:
+    Type: AWS::EC2::PrefixList
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Cloudflare's published IPv4 ranges (https://www.cloudflare.com/ips-v4), so only Cloudflare can reach the origin
+        must:
+          - keep in sync with Cloudflare's list, or real visitors routed via a new range get 522 errors
+    Properties:
+      PrefixListName: !Sub '${AWS::StackName}-cloudflare-ipv4'
+      AddressFamily: IPv4
+      MaxEntries: 25
+      Entries:
+        - { Cidr: 173.245.48.0/20, Description: Cloudflare }
+        - { Cidr: 103.21.244.0/22, Description: Cloudflare }
+        - { Cidr: 103.22.200.0/22, Description: Cloudflare }
+        - { Cidr: 103.31.4.0/22, Description: Cloudflare }
+        - { Cidr: 141.101.64.0/18, Description: Cloudflare }
+        - { Cidr: 108.162.192.0/18, Description: Cloudflare }
+        - { Cidr: 190.93.240.0/20, Description: Cloudflare }
+        - { Cidr: 188.114.96.0/20, Description: Cloudflare }
+        - { Cidr: 197.234.240.0/22, Description: Cloudflare }
+        - { Cidr: 198.41.128.0/17, Description: Cloudflare }
+        - { Cidr: 162.158.0.0/15, Description: Cloudflare }
+        - { Cidr: 104.16.0.0/13, Description: Cloudflare }
+        - { Cidr: 104.24.0.0/14, Description: Cloudflare }
+        - { Cidr: 172.64.0.0/13, Description: Cloudflare }
+        - { Cidr: 131.0.72.0/22, Description: Cloudflare }
+
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: HTTPS from Cloudflare only; Cloudflare redirects HTTP->HTTPS at the edge, so no port 80. Shell access is SSM Session Manager, so no port 22
+        must:
+          - never open 22 or 443 to 0.0.0.0/0
+    Properties:
+      GroupDescription: HTTPS from Cloudflare only
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourcePrefixListId: !Ref CloudflarePrefixList
+          Description: HTTPS from Cloudflare
+
+  # ---------------------------------------------------------------- instance
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: replaces any AWS keys on the server; the backend's S3 client and the release script use it through IMDSv2
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
+      Policies:
+        - PolicyName: app
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: WritePhotos
+                Effect: Allow
+                Action: [s3:PutObject, s3:DeleteObject]
+                Resource: !Sub '${PhotosBucket.Arn}/photos/*'
+              - Sid: ReadReleases
+                Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub '${ReleasesBucket.Arn}/releases/*'
+              - Sid: ReadConfig
+                Effect: Allow
+                Action: ssm:GetParameter
+                Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${ConfigPath}/*'
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref InstanceRole]
+
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: user data only records stack values + installs the AWS CLI; nginx/Node/systemd setup ships with each release (deploy/bootstrap.sh) so it's versioned with the code
+        must:
+          - IMDSv2 only (HttpTokens required)
+    Properties:
+      LaunchTemplateData:
+        ImageId: !Ref ImageId
+        InstanceType: !Ref InstanceType
+        IamInstanceProfile:
+          Arn: !GetAtt InstanceProfile.Arn
+        SecurityGroupIds: [!GetAtt WebSecurityGroup.GroupId]
+        MetadataOptions:
+          HttpTokens: required
+          HttpPutResponseHopLimit: 1
+          HttpEndpoint: enabled
+        BlockDeviceMappings:
+          - DeviceName: /dev/sda1
+            Ebs:
+              VolumeType: gp3
+              VolumeSize: 20
+              Encrypted: true
+              DeleteOnTermination: true
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            set -euo pipefail
+            install -d -m 755 /etc/pandanstreet
+            cat > /etc/pandanstreet/stack.env <<'EOF'
+            DOMAIN=${DomainName}
+            AWS_REGION=${AWS::Region}
+            S3_BUCKET=${PhotosBucket}
+            PHOTOS_BASE_URL=https://${PhotosBucket.RegionalDomainName}
+            RELEASES_BUCKET=${ReleasesBucket}
+            CONFIG_PATH=${ConfigPath}
+            EOF
+            snap install aws-cli --classic
+
+  Instance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: single stateless app server in the default VPC
+        must:
+          - launch template changes replace the instance -> brief downtime; re-run the deploy workflow after
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      Tags:
+        - Key: Name
+          Value: !Ref AWS::StackName
+
+  ElasticIp:
+    Type: AWS::EC2::EIP
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: stable origin address for the Cloudflare A records; survives instance replacement
+        must:
+          - releasing it breaks DNS until the Cloudflare records are updated
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref Instance
+      Tags:
+        - Key: Name
+          Value: !Ref AWS::StackName
+
+  # ---------------------------------------------------------------- GitHub deploys
+
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: CreateGitHubOidcProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList: [sts.amazonaws.com]
+
+  DeployRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: assumed by the deploy workflow via OIDC (no stored keys); can only upload a release and run a shell command on this one instance
+        must:
+          - trust stays limited to main of GitHubRepository
+          - no IAM/EC2/CloudFormation write rights; stack changes are applied by hand
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - CreateGitHubOidcProvider
+                - !Ref GitHubOidcProvider
+                - !Ref GitHubOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub 'repo:${GitHubRepository}:ref:refs/heads/main'
+      Policies:
+        - PolicyName: deploy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: ReadStackOutputs
+                Effect: Allow
+                Action: cloudformation:DescribeStacks
+                Resource: !Ref AWS::StackId
+              - Sid: UploadRelease
+                Effect: Allow
+                Action: s3:PutObject
+                Resource: !Sub '${ReleasesBucket.Arn}/releases/*'
+              - Sid: RunReleaseScript
+                Effect: Allow
+                Action: ssm:SendCommand
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${Instance}'
+                  - !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}::document/AWS-RunShellScript'
+              - Sid: ReadCommandResult
+                Effect: Allow
+                Action: ssm:GetCommandInvocation
+                Resource: '*'
+
+Outputs:
+  ElasticIp:
+    Description: Point the proxied Cloudflare A records for the domain and api. here.
+    Value: !Ref ElasticIp
+  InstanceId:
+    Description: The app server (connect with SSM Session Manager).
+    Value: !Ref Instance
+  DeployRoleArn:
+    Description: Set as the AWS_DEPLOY_ROLE_ARN GitHub variable.
+    Value: !GetAtt DeployRole.Arn
+  ReleasesBucket:
+    Description: Build archives uploaded by the deploy workflow.
+    Value: !Ref ReleasesBucket
+  PhotosBucket:
+    Description: Production photo bucket (S3_BUCKET).
+    Value: !Ref PhotosBucket
+  PhotosBaseUrl:
+    Description: PHOTOS_BASE_URL for the backend.
+    Value: !Sub 'https://${PhotosBucket.RegionalDomainName}'
