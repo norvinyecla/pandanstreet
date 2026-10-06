@@ -1,0 +1,119 @@
+name: Deploy
+
+# Builds the app, applies database migrations and installs the release on the
+# EC2 instance (see "Deployment (AWS EC2)" in README.md for the one-time setup).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time; a newer push waits rather than cancelling a release
+# that's halfway through.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # GitHub OIDC -> the stack's deploy role, no stored AWS keys
+
+jobs:
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      STACK_NAME: ${{ vars.STACK_NAME }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable Corepack (Yarn 4)
+        run: corepack enable
+
+      # Re-run with caching now that Corepack provides the pinned Yarn version.
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build backend
+        run: yarn workspace backend build
+
+      - name: Build frontend
+        run: yarn workspace frontend build
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+
+      # Before the new code starts, so migrations must stay compatible with
+      # the release that's still running.
+      - name: Apply database migrations
+        run: yarn supabase db push --db-url "$SUPABASE_DB_URL" --yes
+        working-directory: backend
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      - name: Package release
+        run: |
+          tar -czf release.tar.gz \
+            .nvmrc package.json yarn.lock .yarnrc.yml \
+            backend/package.json backend/dist \
+            frontend/package.json frontend/dist \
+            deploy
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Read stack outputs
+        run: |
+          output() {
+            aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
+              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" --output text
+          }
+          echo "INSTANCE_ID=$(output InstanceId)" >> "$GITHUB_ENV"
+          echo "RELEASES_BUCKET=$(output ReleasesBucket)" >> "$GITHUB_ENV"
+
+      - name: Upload release
+        run: aws s3 cp release.tar.gz "s3://$RELEASES_BUCKET/releases/$GITHUB_SHA.tar.gz"
+
+      - name: Install release on the instance
+        run: |
+          release="$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::7}"
+          script=$(cat <<EOF
+          set -eu
+          . /etc/pandanstreet/stack.env
+          dir=/opt/pandanstreet/releases/$release
+          mkdir -p "\$dir"
+          /snap/bin/aws s3 cp --region "\$AWS_REGION" "s3://\$RELEASES_BUCKET/releases/$GITHUB_SHA.tar.gz" - | tar -xz -C "\$dir"
+          "\$dir/deploy/release.sh" "\$dir"
+          EOF
+          )
+          command_id=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "Deploy $GITHUB_SHA" \
+            --parameters "$(jq -n --arg s "$script" '{commands: [$s], executionTimeout: ["900"]}')" \
+            --query Command.CommandId --output text)
+          echo "SSM command $command_id"
+
+          status=Pending
+          for _ in $(seq 1 100); do
+            sleep 10
+            status=$(aws ssm get-command-invocation --command-id "$command_id" \
+              --instance-id "$INSTANCE_ID" --query Status --output text 2>/dev/null || echo Pending)
+            case "$status" in Pending | InProgress | Delayed) continue ;; *) break ;; esac
+          done
+
+          aws ssm get-command-invocation --command-id "$command_id" --instance-id "$INSTANCE_ID" \
+            --query '[StandardOutputContent, StandardErrorContent]' --output text || true
+          echo "Status: $status"
+          test "$status" = Success

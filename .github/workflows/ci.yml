@@ -94,3 +94,37 @@ jobs:
 
       - name: Build
         run: yarn build
+
+  # The production deploy files (see deploy/ and README.md). Nothing here
+  # touches AWS: it only checks the files.
+  deploy:
+    name: deploy files
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: CloudFormation template (cfn-lint)
+        run: |
+          pip install 'cfn-lint==1.*'
+          cfn-lint deploy/cloudformation.yaml
+
+      - name: Shell scripts (shellcheck)
+        run: shellcheck deploy/*.sh
+
+      # Same nginx version as Ubuntu 24.04, with a throwaway certificate in
+      # place of the Cloudflare origin certificate.
+      - name: nginx config (nginx -t)
+        run: |
+          mkdir -p tls
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=test \
+            -keyout tls/origin.key -out tls/origin.pem
+          sed 's/__DOMAIN__/example.com/g' deploy/nginx.conf > site.conf
+          docker run --rm \
+            -v "$PWD/site.conf:/etc/nginx/conf.d/default.conf:ro" \
+            -v "$PWD/tls:/etc/pandanstreet/tls:ro" \
+            nginx:1.24-alpine nginx -t
