@@ -4,7 +4,7 @@ A minimal, mobile-first social media app. Users log in, build a small profile, a
 
 ## Tech Stack
 
-- **Frontend:** ReactJS + TailwindCSS (light mode only, for now)
+- **Frontend:** ReactJS + TailwindCSS + DaisyUI (emerald theme, light mode only, for now)
 - **Backend:** NestJS
 - **Data storage:** Supabase (Postgres), run locally with the Supabase CLI; uploaded photos on local disk
 - **Target platform:** Mobile-first, optimized for portrait orientation
@@ -65,6 +65,7 @@ Defined in `backend/supabase/migrations/`:
 - `tiles` — id, user_id, type (`text` | `item`), created_at, archived (bool)
 - `tile_text` — tile_id, text
 - `tile_item` — tile_id, photo_url, caption, badge_color (`red` | `yellow` | `green`)
+- `sessions` — sid, sess (jsonb), expires_at (login sessions, so they survive a backend restart)
 
 ## UX Notes
 
@@ -78,7 +79,7 @@ Defined in `backend/supabase/migrations/`:
 
 ## Decisions
 
-- **Login:** session-based auth (no OAuth) with a separate sign-up step. Users sign up with a unique username, display name, and password, and log in with username + password. Passwords are hashed with Node's built-in `crypto.scrypt`.
+- **Login:** session-based auth (no OAuth) with a separate sign-up step. Users sign up with a unique username, display name, and password, and log in with username + password. Passwords are hashed with Node's built-in `crypto.scrypt`. Sessions are stored in the `sessions` table in Postgres, so logins survive a backend restart.
 - **Archived tiles:** marked inactive/hidden, not deleted — kept in `tiles` with `archived = true`.
 - **Photo storage:** uploaded photos are saved to local disk; the file path is stored in the database.
 - **Editing tiles:** only **Text** tiles can be edited after creation (text content can be updated in place). **Item** tiles are immutable once created — to change one, the user creates a new tile (which may archive the oldest).
