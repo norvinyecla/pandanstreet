@@ -15,13 +15,15 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write # GitHub OIDC -> the stack's deploy role, no stored AWS keys
 
 jobs:
   deploy:
     name: deploy
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # The AWS keys are secrets of this environment, which only allows the
+    # main branch, so no other branch's workflow can read them.
+    environment: production
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
       STACK_NAME: ${{ vars.STACK_NAME }}
@@ -70,7 +72,8 @@ jobs:
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Read stack outputs

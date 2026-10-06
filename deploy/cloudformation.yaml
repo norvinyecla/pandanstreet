@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
   Pandan Street production — one EC2 instance (nginx + NestJS) behind Cloudflare,
   photos in S3, database on hosted Supabase. Code ships from GitHub Actions via
-  OIDC + SSM, so no AWS keys or SSH access exist anywhere.
+  SSM Run Command (no SSH); the only AWS key is the narrow deploy user's.
 
 Metadata:
   AWSToolsMetrics:
@@ -12,6 +12,7 @@ Metadata:
     must:
       - instance holds no state (DB hosted, photos in S3, releases in S3) -> replacing it is safe; re-run the deploy workflow afterwards
       - secrets live in SSM Parameter Store under ConfigPath, never in this template
+      - project SCP denies iam:*Provider* (Free plan) -> no GitHub OIDC; deploys use DeployUser's access key, created by hand (never in outputs)
     ref:
       - at: README.md#deployment-aws-ec2
         has: one-time setup checklist, update and teardown steps
@@ -21,8 +22,6 @@ Metadata:
         Parameters: [DomainName, ConfigPath]
       - Label: { default: Instance }
         Parameters: [ImageId, InstanceType]
-      - Label: { default: GitHub deploys }
-        Parameters: [GitHubRepository, GitHubOidcProviderArn]
 
 Parameters:
   DomainName:
@@ -43,18 +42,6 @@ Parameters:
     Default: t4g.micro
     AllowedValues: [t4g.micro, t4g.small, t4g.medium]
     Description: Arm (Graviton) instance size.
-  GitHubRepository:
-    Type: String
-    Default: norvinyecla/pandanstreet
-    AllowedPattern: '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
-    Description: owner/repo allowed to deploy (main branch only).
-  GitHubOidcProviderArn:
-    Type: String
-    Default: ''
-    Description: ARN of an existing GitHub Actions OIDC provider in this account. Leave empty to create one.
-
-Conditions:
-  CreateGitHubOidcProvider: !Equals [!Ref GitHubOidcProviderArn, '']
 
 Resources:
   # ---------------------------------------------------------------- storage
@@ -305,36 +292,15 @@ Resources:
 
   # ---------------------------------------------------------------- GitHub deploys
 
-  GitHubOidcProvider:
-    Type: AWS::IAM::OIDCProvider
-    Condition: CreateGitHubOidcProvider
-    Properties:
-      Url: https://token.actions.githubusercontent.com
-      ClientIdList: [sts.amazonaws.com]
-
-  DeployRole:
-    Type: AWS::IAM::Role
+  DeployUser:
+    Type: AWS::IAM::User
     Metadata:
       com.aws.cloudformation.Context:
-        why: assumed by the deploy workflow via OIDC (no stored keys); can only upload a release and run a shell command on this one instance
+        why: used by the GitHub deploy workflow (stored as production-environment secrets, main branch only). GitHub OIDC would avoid a stored key, but the project's Free plan SCP denies creating OIDC providers
         must:
-          - trust stays limited to main of GitHubRepository
-          - no IAM/EC2/CloudFormation write rights; stack changes are applied by hand
+          - can only upload a release and run a shell command on this one instance; no IAM/EC2/CloudFormation write rights (stack changes are applied by hand)
+          - no AWS::IAM::AccessKey here: the secret would be readable from the stack; create/rotate the key with the CLI
     Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Federated: !If
-                - CreateGitHubOidcProvider
-                - !Ref GitHubOidcProvider
-                - !Ref GitHubOidcProviderArn
-            Action: sts:AssumeRoleWithWebIdentity
-            Condition:
-              StringEquals:
-                token.actions.githubusercontent.com:aud: sts.amazonaws.com
-                token.actions.githubusercontent.com:sub: !Sub 'repo:${GitHubRepository}:ref:refs/heads/main'
       Policies:
         - PolicyName: deploy
           PolicyDocument:
@@ -366,9 +332,9 @@ Outputs:
   InstanceId:
     Description: The app server (connect with SSM Session Manager).
     Value: !Ref Instance
-  DeployRoleArn:
-    Description: Set as the AWS_DEPLOY_ROLE_ARN GitHub variable.
-    Value: !GetAtt DeployRole.Arn
+  DeployUserName:
+    Description: IAM user whose access key the deploy workflow uses (create the key with the CLI, see README).
+    Value: !Ref DeployUser
   ReleasesBucket:
     Description: Build archives uploaded by the deploy workflow.
     Value: !Ref ReleasesBucket

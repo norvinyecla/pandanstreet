@@ -137,7 +137,7 @@ Production runs at `https://pandanstreet.trade` (frontend) and `https://api.pand
 - **Cloudflare** proxies both names and serves HTTPS to visitors. It connects to the instance over HTTPS ("Full (strict)") with a Cloudflare Origin Certificate.
 - **One EC2 `t4g.micro`** (Ubuntu 24.04, Arm) runs nginx, which serves the frontend's static build and proxies `api.` to the NestJS backend (a `systemd` service). Only Cloudflare's IP ranges can reach it, on port 443. There is no SSH: shell access goes through SSM Session Manager.
 - **Hosted Supabase** (supabase.com, Sydney) holds the database; **S3** holds the photos.
-- **GitHub Actions** (`.github/workflows/deploy.yml`) deploys every push to `main`. It builds both apps, applies new migrations, uploads a release archive to S3 and runs `deploy/release.sh` on the instance through SSM. That script sets up the server on first run (`deploy/bootstrap.sh`), installs the release, restarts the backend, and rolls back if it doesn't answer. Actions signs in to AWS with GitHub OIDC, so no AWS keys are stored anywhere.
+- **GitHub Actions** (`.github/workflows/deploy.yml`) deploys every push to `main`. It builds both apps, applies new migrations, uploads a release archive to S3 and runs `deploy/release.sh` on the instance through SSM. That script sets up the server on first run (`deploy/bootstrap.sh`), installs the release, restarts the backend, and rolls back if it doesn't answer. Actions signs in to AWS as a deploy IAM user that can only upload a release and run it on this instance. Its access key is a secret of the GitHub `production` environment, which only `main` can use. GitHub OIDC would avoid storing a key, but the AWS project's Free plan doesn't allow creating OIDC providers.
 - **The AWS resources** are in `deploy/cloudformation.yaml`, applied by hand. They are the instance, Elastic IP, security group, IAM roles, the prod photos bucket and the releases bucket.
 - **Secrets** live in SSM Parameter Store under `/pandanstreet/prod/`. The instance reads them on each release.
 
@@ -157,13 +157,13 @@ You need the AWS CLI signed in to the project (e.g. `aws login`). Confirm the pr
    aws ssm get-parameter --region ap-southeast-2 --name /aws/service/canonical/ubuntu/server/24.04/stable/current/arm64/hvm/ebs-gp3/ami-id --query Parameter.Value --output text
    ```
 
-3. **Create the stack.** If the account already has a GitHub OIDC provider (`aws iam list-open-id-connect-providers`), also pass `GitHubOidcProviderArn=<its ARN>`:
+3. **Create the stack:**
 
    ```bash
    aws cloudformation deploy --region ap-southeast-2 --stack-name pandanstreet-prod --template-file deploy/cloudformation.yaml --capabilities CAPABILITY_IAM --parameter-overrides ImageId=<ami id>
    ```
 
-   Then read its outputs (Elastic IP, deploy role, buckets):
+   Then read its outputs (Elastic IP, deploy user, buckets):
 
    ```bash
    aws cloudformation describe-stacks --region ap-southeast-2 --stack-name pandanstreet-prod --query 'Stacks[0].Outputs' --output table
@@ -187,9 +187,22 @@ You need the AWS CLI signed in to the project (e.g. `aws login`). Confirm the pr
 
    Then delete `origin.key`.
 
-6. **GitHub** (Settings > Secrets and variables > Actions):
-   - variables: `AWS_REGION` = `ap-southeast-2`; `STACK_NAME` = `pandanstreet-prod`; `AWS_DEPLOY_ROLE_ARN` = the `DeployRoleArn` output; `VITE_API_URL` = `https://api.pandanstreet.trade`
-   - secret: `SUPABASE_DB_URL` = the session pooler connection string, with the database password filled in
+6. **GitHub:** a `production` environment that only `main` can deploy to, plus the variables and secrets:
+
+   ```bash
+   gh api -X PUT repos/norvinyecla/pandanstreet/environments/production -F 'deployment_branch_policy[protected_branches]=false' -F 'deployment_branch_policy[custom_branch_policies]=true'
+   gh api -X POST repos/norvinyecla/pandanstreet/environments/production/deployment-branch-policies -f name=main -f type=branch
+   gh variable set AWS_REGION --body ap-southeast-2
+   gh variable set STACK_NAME --body pandanstreet-prod
+   gh variable set VITE_API_URL --body https://api.pandanstreet.trade
+   gh secret set SUPABASE_DB_URL --env production
+   ```
+
+   The last command prompts for the session pooler connection string, with the database password filled in. Then create the deploy user's access key and store it straight in GitHub, so it's never shown on screen (`DeployUserName` is a stack output):
+
+   ```bash
+   aws iam create-access-key --user-name <DeployUserName> --output json | jq -r '.AccessKey | "AWS_ACCESS_KEY_ID=\(.AccessKeyId)\nAWS_SECRET_ACCESS_KEY=\(.SecretAccessKey)"' | gh secret set --env production -f -
+   ```
 
 7. **First deploy:** Actions > Deploy > Run workflow (or merge to `main`). This creates the tables in the empty database, and the first run on a new instance installs Node and nginx, so it takes a few minutes. Then open `https://pandanstreet.trade`.
 
@@ -198,6 +211,7 @@ You need the AWS CLI signed in to the project (e.g. `aws login`). Confirm the pr
 - **Deploying:** merge to `main`. Watch it under Actions > Deploy; a failed release leaves the previous one running.
 - **Logs and a shell:** `aws ssm start-session --region ap-southeast-2 --target <InstanceId>` (needs the Session Manager plugin for the AWS CLI), then `journalctl -u pandanstreet-backend -f`.
 - **Changing a secret:** update the SSM parameter (`put-parameter ... --overwrite`), then re-run the Deploy workflow.
+- **Rotating the deploy key** (every few months, or straight away if it may have leaked): run the `create-access-key` command from step 6 again, check a deploy works, then delete the old key with `aws iam delete-access-key --user-name <DeployUserName> --access-key-id <old key id>` (`aws iam list-access-keys --user-name <DeployUserName>` lists them).
 - **Changing the AWS resources:** edit the template and run the same `aws cloudformation deploy` command. Changing the AMI, instance type or user data **replaces the instance**: the Elastic IP moves over automatically, but the new instance is empty until you re-run the Deploy workflow.
 - **Cloudflare IP ranges:** the security group only allows the ranges in `CloudflarePrefixList`. If Cloudflare publishes new ones (https://www.cloudflare.com/ips-v4), update the template and the stack.
 
