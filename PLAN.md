@@ -299,7 +299,7 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
 - **Release script** (`deploy/release.sh`, on the instance): the SSM command unpacks the archive into `/opt/pandanstreet/releases/<timestamp>-<sha>`, then the script runs bootstrap, renders `backend.env` and writes the origin certificate and key (readable by root only), installs backend production dependencies only (`yarn workspaces focus backend --production`), switches the `current` symlink (nginx serves the frontend straight from `current`, so both apps switch together), installs the nginx site, restarts the backend, and check it answers on `127.0.0.1:3001`. If the check fails, switch back to the previous release and fail. Keep the last 3 releases
 - **nginx:**
   - HTTPS only (port 443) with the origin certificate
-  - `pandanstreet.trade`: serves the frontend; unknown paths fall back to `index.html` (client-side routes like `/u/<username>`); hashed `/assets/` get a long cache
+  - `pandanstreet.trade`: serves the frontend; unknown paths fall back to `index.html` (client-side routes like `/users/<username>`); hashed `/assets/` get a long cache
   - `api.pandanstreet.trade`: proxies to `127.0.0.1:3001` with `X-Forwarded-For`/`X-Forwarded-Proto`; `client_max_body_size 6m` (the backend still enforces the 5MB photo limit)
   - Any other host name (e.g. the bare IP) is refused
 - **Cloudflare setup (manual, in the dashboard):** proxied A records for `pandanstreet.trade` and `api` pointing at the Elastic IP; SSL/TLS mode Full (strict); "Always Use HTTPS" on; an Origin Certificate for `pandanstreet.trade` and `*.pandanstreet.trade`, saved into the two SSM parameters. Cloudflare's default caching already skips HTML and API responses and caches the hashed assets
@@ -315,13 +315,14 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
 - **Manual check** after the first deploy, at mobile width on `https://pandanstreet.trade`:
   - sign up, log out and log in, and reload to confirm the session holds
   - upload a profile photo and an Item tile, and confirm they load from the prod bucket
-  - open a `/u/<username>` URL directly, and confirm the cookie is `Secure`
+  - open a `/users/<username>` URL directly, and confirm the cookie is `Secure`
   - push a trivial change to `main` and watch it deploy
 - **Docs:**
   - README: a new "Deployment (AWS EC2)" section with the one-time checklist: confirm the Region, create the Supabase project, find the AMI ID, create the stack, set up Cloudflare (DNS, SSL mode, origin certificate), create the SSM parameters, set the GitHub variables and secret, and do the first deploy. It also explains how to update the Cloudflare IP ranges in the template if Cloudflare changes them. It also covers updating the stack, rough monthly cost, and how to tear it down
   - README Tech Stack mentions the deployment
   - AGENTS.md: repo structure adds `/deploy`; a note that merging to `main` deploys to production (migrations included, so they must stay compatible with the running code)
   - `backend/.env.example`: a note on what `NODE_ENV=production` changes
+- **Follow-ups after launch** (confirmed with the user): the page title becomes "PandanStreet" (it was Vite's default "frontend"), and any URL that matches no route shows a "Page not found" page with a link to the home page, logged in or not (it used to show an empty page)
 - **Not in this phase:** `www.` redirect, Cloudflare Authenticated Origin Pulls, a staging environment, monitoring/alerting, multiple instances
 
 ## Out of Scope (for this prototype)
