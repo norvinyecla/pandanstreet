@@ -225,7 +225,7 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
   - `set`: upserts the row, with `expires_at` from the session cookie's expiry (7-day `maxAge`, unchanged), and deletes expired rows
   - `destroy`: deletes the row (logout)
   - `touch`: updates `expires_at`
-  - Database errors go to the callback, so the request fails with the standard error response and is never treated as logged out
+  - Database errors go to the callback, so the request fails with a 500 and is never treated as logged out
 - **Wiring:** move the session setup out of `main.ts` into a shared helper that takes the Supabase client, so `main.ts` and the e2e specs (which currently copy the session config) use the same store
 - `resetDatabase` in tests also clears `sessions`
 - Session regeneration on login/sign-up and the cookie settings are unchanged

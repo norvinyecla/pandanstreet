@@ -3,9 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import session from 'express-session';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
+import { createSessionMiddleware } from '../src/common/auth/session-middleware.js';
+import { SUPABASE_CLIENT } from '../src/common/database/supabase.module.js';
 import {
   createTestSupabase,
   resetDatabase,
@@ -17,6 +18,18 @@ function signupBody(name: string) {
   return { username: name.toLowerCase(), name, password: PASSWORD };
 }
 
+async function createApp(): Promise<INestApplication> {
+  const moduleFixture: TestingModule = await Test.createTestingModule({
+    imports: [AppModule],
+  }).compile();
+
+  const app = moduleFixture.createNestApplication();
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.use(createSessionMiddleware(app.get(SUPABASE_CLIENT), 'test-secret'));
+  await app.init();
+  return app;
+}
+
 describe('Users & Auth (e2e)', () => {
   let app: INestApplication;
   let dir: string;
@@ -26,23 +39,7 @@ describe('Users & Auth (e2e)', () => {
     dir = await mkdtemp(join(tmpdir(), 'users-e2e-'));
     process.env.DATA_DIR = dir;
 
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, transform: true }),
-    );
-    app.use(
-      session({
-        secret: 'test-secret',
-        resave: false,
-        saveUninitialized: false,
-        cookie: { httpOnly: true },
-      }),
-    );
-    await app.init();
+    app = await createApp();
   });
 
   afterEach(async () => {
@@ -137,6 +134,37 @@ describe('Users & Auth (e2e)', () => {
 
     await agent.post('/auth/logout').expect(204);
     await agent.get('/auth/me').expect(401);
+  });
+
+  it('keeps a session across a backend restart', async () => {
+    const signup = await request(app.getHttpServer())
+      .post('/auth/signup')
+      .send(signupBody('Hamilton'))
+      .expect(201);
+    const cookie = signup.get('Set-Cookie') ?? [];
+
+    await app.close();
+    app = await createApp();
+
+    const me = await request(app.getHttpServer())
+      .get('/auth/me')
+      .set('Cookie', cookie)
+      .expect(200);
+    expect(me.body.id).toBe(signup.body.id);
+  });
+
+  it('removes the stored session on logout', async () => {
+    const db = createTestSupabase();
+    const agent = request.agent(app.getHttpServer());
+    await agent.post('/auth/signup').send(signupBody('Liskov')).expect(201);
+
+    const before = await db.from('sessions').select('sid').throwOnError();
+    expect(before.data).toHaveLength(1);
+
+    await agent.post('/auth/logout').expect(204);
+
+    const after = await db.from('sessions').select('sid').throwOnError();
+    expect(after.data).toHaveLength(0);
   });
 
   it('rejects /auth/me without a session', async () => {

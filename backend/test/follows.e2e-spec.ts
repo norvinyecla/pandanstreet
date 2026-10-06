@@ -3,9 +3,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import session from 'express-session';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
+import { createSessionMiddleware } from '../src/common/auth/session-middleware.js';
+import { SUPABASE_CLIENT } from '../src/common/database/supabase.module.js';
 import {
   createTestSupabase,
   resetDatabase,
@@ -28,14 +29,7 @@ describe('Follows (e2e)', () => {
     app.useGlobalPipes(
       new ValidationPipe({ whitelist: true, transform: true }),
     );
-    app.use(
-      session({
-        secret: 'test-secret',
-        resave: false,
-        saveUninitialized: false,
-        cookie: { httpOnly: true },
-      }),
-    );
+    app.use(createSessionMiddleware(app.get(SUPABASE_CLIENT), 'test-secret'));
     await app.init();
   });
 
