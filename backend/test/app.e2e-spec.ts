@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from './../src/app.module.js';
+import { createFakePhotoStorage } from './../src/common/uploads/fake-s3.js';
+import { PhotoStorage } from './../src/common/uploads/photo-storage.js';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication;
@@ -9,7 +11,10 @@ describe('AppController (e2e)', () => {
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(PhotoStorage)
+      .useValue(createFakePhotoStorage().storage)
+      .compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();

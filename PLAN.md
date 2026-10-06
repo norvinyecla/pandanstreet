@@ -235,6 +235,54 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
   - README Tech Stack frontend line becomes "ReactJS + TailwindCSS + DaisyUI (emerald theme, light mode only)" to match AGENTS.md (missed in Phase 21)
   - Fix the stale `test-database.ts` comment, which still points at `yarn db:start` and `backend/.env` instead of the test stack
 
+## Phase 24 — Photo Storage on AWS S3
+
+- **Goal:** store uploaded photos (profile photos and Item tile photos) in an AWS S3 bucket instead of `backend/data/uploads/`, so the backend keeps no files on local disk. This is needed before deploying to EC2 (Phase 25)
+- **Decisions (confirmed with the user):**
+  - Real S3 everywhere: local development uses a dev bucket; tests use a fake storage, so no AWS access is needed to run tests or CI
+  - The bucket allows public reads of photos, and the browser loads them straight from S3 (same exposure as today's public `/uploads/` route)
+  - New backend dependency: `@aws-sdk/client-s3` (only the S3 client, not the whole SDK)
+  - Existing files on disk aren't migrated (the dev uploads folder is empty, as with the CSV data in Phase 20)
+- **No schema change:** `users.photo_url` and `tile_item.photo_url` now hold the photo's full public URL (e.g. `https://<bucket>.s3.<region>.amazonaws.com/photos/<uuid>.jpg`) instead of `/uploads/<uuid>.jpg`. API response shapes are unchanged
+- **Backend:**
+  - Replace `common/uploads/photo-files.ts` with a `PhotoStorage` provider (in the existing `common/uploads/` folder) that wraps an `S3Client`, injected into `UsersController` and `TilesController`
+    - `save(buffer, extension, contentType)`: `PutObject` under `photos/<uuid>.<ext>` with the right `Content-Type` and a long `Cache-Control` (keys never change), and returns the public URL
+    - `delete(photoUrl)`: `DeleteObject` for URLs under `PHOTOS_BASE_URL/photos/`; ignores empty values, old `/uploads/` paths and any other URL; logs and never throws on failure
+  - The Phase 14 cleanup rules are unchanged: replacing a profile photo deletes the old object once the new URL is saved; a failed tile creation deletes the object it just uploaded; archived tiles keep their photos
+  - A failed upload to S3 fails the request with a standard `500` (nothing is written to the database)
+  - Upload limits are unchanged: 5MB and jpg/png/webp, checked on the server before anything is sent to S3 (multer keeps files in memory, as now)
+  - Remove the `/uploads/` static route and `DATA_DIR` from `main.ts`, and the `backend/data/` folder
+  - **Config** in `backend/.env` / `.env.example`: `AWS_REGION`, `S3_BUCKET`, `PHOTOS_BASE_URL`. The app fails at startup with a clear message if any are missing. AWS credentials are never in code or committed `.env` files: the SDK's default credential chain picks them up (`AWS_PROFILE` or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` locally, the instance role on EC2 in Phase 25)
+- **Frontend:** photo URLs are now absolute, so remove `resolveAssetUrl` and use `photoUrl` directly in `TileGrid`, `FeedAuthorLink`, `ItemTileOverlay`, `ProfilePage`, `ProfileEditPage` and `BulletinBoardPage`. The default sprout avatar for an empty `photoUrl` is unchanged
+- **Bucket setup (manual, documented in README; no infrastructure-as-code yet):**
+  - One bucket per environment (e.g. a dev bucket now, a prod bucket in Phase 25), with Object Ownership "bucket owner enforced" (no ACLs)
+  - A bucket policy allowing public `s3:GetObject` on `photos/*` only (so Block Public Access is relaxed for bucket policies)
+  - An IAM user (dev) or role (EC2) limited to `s3:PutObject` and `s3:DeleteObject` on `photos/*` of that bucket
+  - No CORS rule is needed: the browser only loads photos through `<img>` tags
+- **Tests:**
+  - `PhotoStorage` with a fake `S3Client`: save sends the right key, body, content type and cache header and returns the public URL; delete sends the right key; delete ignores empty, `/uploads/` and other URLs; a failed delete is logged, not thrown
+  - Controller and e2e tests swap in a fake `PhotoStorage` provider (no network): the existing Phase 14 cases are ported (old photo deleted on replace, first upload, cleanup after a failed tile creation, archived tile keeps its photo, failed delete doesn't fail the request), plus a failed upload returns `500` and saves nothing
+  - Frontend tests that build photo URLs with `resolveAssetUrl` are updated
+  - Startup config check: missing S3 settings give a clear error
+- **Manual check** against the dev bucket: upload a profile photo and an Item tile at mobile width, confirm the images load from the S3 URL, replace the profile photo and confirm the old object is gone, and check a too-large or wrong-type file is still rejected
+- **Docs:** AGENTS.md (repo structure drops `/backend/data`; the Data and File Uploads sections say photos go to S3; Running the App says to set the S3 settings and AWS credentials) and README (Tech Stack, bucket setup)
+
+## Phase 25 — Cloud Deployment on AWS EC2 (outline)
+
+To be planned in detail after Phase 24 lands. Outline:
+
+- One EC2 instance running the NestJS backend (pinned Node LTS, managed by `systemd` or `pm2`), with nginx in front for HTTPS (e.g. Let's Encrypt)
+- The frontend's production build (`yarn build`) served as static files, with `VITE_API_URL` pointing at the deployed API
+- The instance's IAM role grants the Phase 24 S3 permissions on a prod bucket, so no AWS keys live on the server
+- Production `.env` on the server: a strong `SESSION_SECRET`, `FRONTEND_ORIGIN`, the prod Supabase URL and key, and the S3 settings
+- Session cookies set to `secure` behind HTTPS (trust the proxy)
+- **Open items to confirm before starting:**
+  - Database: a hosted Supabase project, or self-hosted Supabase on the instance or elsewhere
+  - Frontend hosting: nginx on the same instance, or S3 + CloudFront
+  - Domain: one domain with the API under `/api` (same-site cookies, no CORS), or separate frontend and API subdomains
+  - Deploys: manual (SSH + script) or from GitHub Actions
+  - Whether to describe the AWS resources as code (e.g. CloudFormation or Terraform) or set them up by hand with a documented checklist
+
 ## Out of Scope (for this prototype)
 
 - Dark mode

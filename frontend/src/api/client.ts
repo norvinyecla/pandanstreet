@@ -1,10 +1,5 @@
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
-/** Resolves a server-relative path (e.g. a photo's `/uploads/...` path) against the API origin. */
-export function resolveAssetUrl(path: string): string {
-  return path ? `${API_URL}${path}` : path;
-}
-
 export class ApiError extends Error {
   readonly status: number;
 

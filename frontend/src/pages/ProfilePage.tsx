@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api, ApiError, resolveAssetUrl } from '../api/client.ts';
+import { api, ApiError } from '../api/client.ts';
 import type { FollowUser, Tile, UserProfile } from '../api/types.ts';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { LoadError } from '../components/LoadError.tsx';
@@ -121,11 +121,7 @@ export function ProfilePage() {
 
   return (
     <div className="flex flex-col items-center gap-4 pt-6">
-      <ProfileAvatar
-        src={resolveAssetUrl(profile.photoUrl)}
-        name={profile.name}
-        size="lg"
-      />
+      <ProfileAvatar src={profile.photoUrl} name={profile.name} size="lg" />
       <div className="text-center">
         <h1 className="text-xl font-semibold text-base-content">
           {profile.name}

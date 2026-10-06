@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, ApiError, resolveAssetUrl } from '../api/client.ts';
+import { api, ApiError } from '../api/client.ts';
 import type { BulletinItem } from '../api/types.ts';
 import { FeedAuthorLink } from '../components/FeedAuthorLink.tsx';
 import { ItemTileOverlay } from '../components/ItemTileOverlay.tsx';
@@ -67,7 +67,7 @@ export function BulletinBoardPage() {
                 className="block w-full rounded-md"
               >
                 <img
-                  src={resolveAssetUrl(item.photoUrl)}
+                  src={item.photoUrl}
                   alt={item.caption}
                   className="aspect-square w-full rounded-md bg-base-200 object-cover"
                 />

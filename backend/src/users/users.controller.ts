@@ -1,4 +1,3 @@
-import { join } from 'node:path';
 import {
   BadRequestException,
   Body,
@@ -17,7 +16,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { CurrentUserId } from '../common/auth/current-user-id.decorator.js';
 import { SessionAuthGuard } from '../common/auth/session-auth.guard.js';
-import { deletePhoto, savePhoto } from '../common/uploads/photo-files.js';
+import { PhotoStorage } from '../common/uploads/photo-storage.js';
 import { UpdateBioDto } from './dto/update-bio.dto.js';
 import type { UserProfileDto } from './dto/user-profile.dto.js';
 import { UsersService } from './users.service.js';
@@ -25,17 +24,14 @@ import { resolveUploadLimits } from './upload.config.js';
 
 @Controller('users')
 export class UsersController {
-  private readonly uploadDir: string;
   private readonly maxBytes: number;
   private readonly allowedTypes: Record<string, string>;
 
   constructor(
     private readonly usersService: UsersService,
+    private readonly photoStorage: PhotoStorage,
     config: ConfigService,
   ) {
-    const dataDir =
-      config.get<string>('DATA_DIR') ?? join(process.cwd(), 'data');
-    this.uploadDir = join(dataDir, 'uploads');
     ({ maxBytes: this.maxBytes, allowedTypes: this.allowedTypes } =
       resolveUploadLimits(config));
   }
@@ -90,7 +86,11 @@ export class UsersController {
       throw new BadRequestException('Photo must be one of: jpg, png, webp');
     }
 
-    const photoUrl = await savePhoto(this.uploadDir, file.buffer, extension);
+    const photoUrl = await this.photoStorage.save(
+      file.buffer,
+      extension,
+      file.mimetype,
+    );
     let previousPhotoUrl: string;
     try {
       ({ previousPhotoUrl } = await this.usersService.setPhotoUrl(
@@ -98,10 +98,10 @@ export class UsersController {
         photoUrl,
       ));
     } catch (err) {
-      await deletePhoto(this.uploadDir, photoUrl);
+      await this.photoStorage.delete(photoUrl);
       throw err;
     }
-    await deletePhoto(this.uploadDir, previousPhotoUrl);
+    await this.photoStorage.delete(previousPhotoUrl);
     return this.usersService.getProfile(id);
   }
 }

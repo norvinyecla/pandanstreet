@@ -1,6 +1,3 @@
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
@@ -11,19 +8,29 @@ import {
   createTestSupabase,
   resetDatabase,
 } from '../src/common/database/test-database.js';
+import {
+  createFakePhotoStorage,
+  type FakeS3,
+  keyOf,
+  TEST_PHOTOS_BASE_URL,
+} from '../src/common/uploads/fake-s3.js';
+import { PhotoStorage } from '../src/common/uploads/photo-storage.js';
 
 describe('Tiles (e2e)', () => {
   let app: INestApplication;
-  let dir: string;
+  let s3: FakeS3;
 
   beforeEach(async () => {
     await resetDatabase(createTestSupabase());
-    dir = await mkdtemp(join(tmpdir(), 'tiles-e2e-'));
-    process.env.DATA_DIR = dir;
 
+    const fake = createFakePhotoStorage();
+    s3 = fake.s3;
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(PhotoStorage)
+      .useValue(fake.storage)
+      .compile();
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(
@@ -35,8 +42,6 @@ describe('Tiles (e2e)', () => {
 
   afterEach(async () => {
     await app.close();
-    delete process.env.DATA_DIR;
-    await rm(dir, { recursive: true, force: true });
   });
 
   async function loginAs(name: string) {
@@ -98,7 +103,30 @@ describe('Tiles (e2e)', () => {
       caption: 'A nice photo',
       badgeColor: 'green',
     });
-    expect(res.body.photoUrl).toMatch(/^\/uploads\/.+\.png$/);
+    expect(res.body.photoUrl).toMatch(
+      new RegExp(`^${TEST_PHOTOS_BASE_URL}/photos/.+\\.png$`),
+    );
+    expect(s3.objects.get(keyOf(res.body.photoUrl))?.ContentType).toBe(
+      'image/png',
+    );
+  });
+
+  it('returns 500 and creates no tile when the upload to S3 fails', async () => {
+    const alice = await loginAs('Alice');
+    s3.failPut = true;
+
+    await alice.agent
+      .post('/tiles/item')
+      .field('caption', 'A nice photo')
+      .field('badgeColor', 'green')
+      .attach('photo', Buffer.from([0x89, 0x50, 0x4e, 0x47]), {
+        filename: 'photo.png',
+        contentType: 'image/png',
+      })
+      .expect(500);
+
+    const tiles = await alice.agent.get(`/tiles/${alice.id}`).expect(200);
+    expect(tiles.body).toEqual([]);
   });
 
   it('rejects an item tile with an invalid badge color', async () => {

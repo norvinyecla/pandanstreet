@@ -1,6 +1,3 @@
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
@@ -11,6 +8,13 @@ import {
   createTestSupabase,
   resetDatabase,
 } from '../src/common/database/test-database.js';
+import {
+  createFakePhotoStorage,
+  type FakeS3,
+  keyOf,
+  TEST_PHOTOS_BASE_URL,
+} from '../src/common/uploads/fake-s3.js';
+import { PhotoStorage } from '../src/common/uploads/photo-storage.js';
 
 const PASSWORD = 'password123';
 
@@ -18,10 +22,13 @@ function signupBody(name: string) {
   return { username: name.toLowerCase(), name, password: PASSWORD };
 }
 
-async function createApp(): Promise<INestApplication> {
+async function createApp(storage: PhotoStorage): Promise<INestApplication> {
   const moduleFixture: TestingModule = await Test.createTestingModule({
     imports: [AppModule],
-  }).compile();
+  })
+    .overrideProvider(PhotoStorage)
+    .useValue(storage)
+    .compile();
 
   const app = moduleFixture.createNestApplication();
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
@@ -32,20 +39,18 @@ async function createApp(): Promise<INestApplication> {
 
 describe('Users & Auth (e2e)', () => {
   let app: INestApplication;
-  let dir: string;
+  let s3: FakeS3;
+  let storage: PhotoStorage;
 
   beforeEach(async () => {
     await resetDatabase(createTestSupabase());
-    dir = await mkdtemp(join(tmpdir(), 'users-e2e-'));
-    process.env.DATA_DIR = dir;
+    ({ s3, storage } = createFakePhotoStorage());
 
-    app = await createApp();
+    app = await createApp(storage);
   });
 
   afterEach(async () => {
     await app.close();
-    delete process.env.DATA_DIR;
-    await rm(dir, { recursive: true, force: true });
   });
 
   it('signs up a new user and returns their profile', async () => {
@@ -144,7 +149,7 @@ describe('Users & Auth (e2e)', () => {
     const cookie = signup.get('Set-Cookie') ?? [];
 
     await app.close();
-    app = await createApp();
+    app = await createApp(storage);
 
     const me = await request(app.getHttpServer())
       .get('/auth/me')
@@ -252,7 +257,27 @@ describe('Users & Auth (e2e)', () => {
       })
       .expect(201);
 
-    expect(res.body.photoUrl).toMatch(/^\/uploads\/.+\.png$/);
+    expect(res.body.photoUrl).toMatch(
+      new RegExp(`^${TEST_PHOTOS_BASE_URL}/photos/.+\\.png$`),
+    );
+    expect(s3.keys()).toEqual([keyOf(res.body.photoUrl)]);
+  });
+
+  it('returns 500 and keeps the profile unchanged when the upload to S3 fails', async () => {
+    const agent = request.agent(app.getHttpServer());
+    const me = await agent.post('/auth/signup').send(signupBody('Meitner'));
+    s3.failPut = true;
+
+    await agent
+      .post(`/users/${me.body.id}/photo`)
+      .attach('photo', Buffer.from([0x89, 0x50, 0x4e, 0x47]), {
+        filename: 'photo.png',
+        contentType: 'image/png',
+      })
+      .expect(500);
+
+    const profile = await agent.get(`/users/${me.body.id}`).expect(200);
+    expect(profile.body.photoUrl).toBe('');
   });
 
   it('rejects a bio update without a session', async () => {

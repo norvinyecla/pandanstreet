@@ -12,7 +12,7 @@ function makeItem(index: number): BulletinItem {
   return {
     id: `t${index}`,
     createdAt: `2026-01-01T00:00:${String(index).padStart(2, '0')}Z`,
-    photoUrl: `/uploads/${index}.png`,
+    photoUrl: `https://photos.example.test/photos/${index}.png`,
     caption: `Item ${index}`,
     badgeColor: 'green',
     author: { id: 'u2', username: 'grace', name: 'Grace', photoUrl: '' },
@@ -48,7 +48,10 @@ describe('BulletinBoardPage', () => {
     renderPage();
 
     const photo = await screen.findByAltText('Item 1');
-    expect(photo).toHaveAttribute('src', 'http://localhost:3001/uploads/1.png');
+    expect(photo).toHaveAttribute(
+      'src',
+      'https://photos.example.test/photos/1.png',
+    );
     expect(screen.getByRole('list')).toHaveClass('grid-cols-3');
     expect(screen.getByText('Item 2')).toBeInTheDocument();
     expect(screen.getByText("G'day!")).toBeInTheDocument();
@@ -73,7 +76,7 @@ describe('BulletinBoardPage', () => {
                 id: 'u3',
                 username: 'ada',
                 name: 'Ada',
-                photoUrl: '/uploads/ada.png',
+                photoUrl: 'https://photos.example.test/photos/ada.png',
               },
             },
           ]),
@@ -86,7 +89,7 @@ describe('BulletinBoardPage', () => {
     const avatar = await screen.findByAltText("Ada's profile photo");
     expect(avatar).toHaveAttribute(
       'src',
-      'http://localhost:3001/uploads/ada.png',
+      'https://photos.example.test/photos/ada.png',
     );
     const link = avatar.closest('a');
     expect(link).toHaveAttribute('href', '/users/ada');
@@ -217,7 +220,7 @@ describe('BulletinBoardPage', () => {
       const dialog = screen.getByRole('dialog', { name: 'Item 2' });
       expect(within(dialog).getByAltText('Item 2')).toHaveAttribute(
         'src',
-        'http://localhost:3001/uploads/2.png',
+        'https://photos.example.test/photos/2.png',
       );
       expect(within(dialog).getByText('Hello!')).toBeInTheDocument();
       const age = within(dialog).getByText('2h ago');

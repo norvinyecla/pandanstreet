@@ -1,6 +1,6 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api, ApiError, resolveAssetUrl } from '../api/client.ts';
+import { api, ApiError } from '../api/client.ts';
 import type { UserProfile } from '../api/types.ts';
 import { useAuth } from '../auth/AuthContext.tsx';
 import { ProfileAvatar } from '../components/ProfileAvatar.tsx';
@@ -63,7 +63,7 @@ export function ProfileEditPage() {
     }
   };
 
-  const previewSrc = photoPreviewUrl ?? resolveAssetUrl(currentUser.photoUrl);
+  const previewSrc = photoPreviewUrl ?? currentUser.photoUrl;
 
   return (
     <div className="flex flex-col gap-4 pt-6">

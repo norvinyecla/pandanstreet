@@ -58,7 +58,7 @@ describe('FollowingPage', () => {
             id: 'u3',
             username: 'linus',
             name: 'Linus',
-            photoUrl: '/uploads/l.png',
+            photoUrl: 'https://photos.example.test/photos/l.png',
           },
         ]),
     });

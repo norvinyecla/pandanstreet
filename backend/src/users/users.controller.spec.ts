@@ -1,11 +1,14 @@
-import { mkdtemp, readdir, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { Logger } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import {
   createTestSupabase,
   resetDatabase,
 } from '../common/database/test-database.js';
+import {
+  createFakePhotoStorage,
+  type FakeS3,
+  keyOf,
+} from '../common/uploads/fake-s3.js';
 import { newUser } from './test-fixtures.js';
 import { UsersController } from './users.controller.js';
 import { UsersService } from './users.service.js';
@@ -20,25 +23,21 @@ function photoFile(): Express.Multer.File {
 
 describe('UsersController photo upload', () => {
   const db = createTestSupabase();
-  let dir: string;
-  let uploadDir: string;
+  let s3: FakeS3;
   let usersService: UsersService;
   let controller: UsersController;
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'users-controller-'));
-    uploadDir = join(dir, 'uploads');
     await resetDatabase(db);
     usersService = new UsersService(db);
-    const config = {
-      get: (key: string) => (key === 'DATA_DIR' ? dir : undefined),
-    } as unknown as ConfigService;
-    controller = new UsersController(usersService, config);
+    const fake = createFakePhotoStorage();
+    s3 = fake.s3;
+    const config = { get: () => undefined } as unknown as ConfigService;
+    controller = new UsersController(usersService, fake.storage, config);
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     vi.restoreAllMocks();
-    await rm(dir, { recursive: true, force: true });
   });
 
   it('keeps the photo on a first upload', async () => {
@@ -46,9 +45,7 @@ describe('UsersController photo upload', () => {
 
     const profile = await controller.uploadPhoto(user.id, user.id, photoFile());
 
-    expect(await readdir(uploadDir)).toEqual([
-      profile.photoUrl.slice('/uploads/'.length),
-    ]);
+    expect(s3.keys()).toEqual([keyOf(profile.photoUrl)]);
   });
 
   it('deletes the previous photo when it is replaced', async () => {
@@ -57,12 +54,10 @@ describe('UsersController photo upload', () => {
 
     const profile = await controller.uploadPhoto(user.id, user.id, photoFile());
 
-    expect(await readdir(uploadDir)).toEqual([
-      profile.photoUrl.slice('/uploads/'.length),
-    ]);
+    expect(s3.keys()).toEqual([keyOf(profile.photoUrl)]);
   });
 
-  it('deletes the new file if saving the photo path fails', async () => {
+  it('deletes the new photo if saving its URL fails', async () => {
     const user = await usersService.create(newUser('Ada'));
     vi.spyOn(usersService, 'setPhotoUrl').mockRejectedValue(
       new Error('Database write failed'),
@@ -71,6 +66,28 @@ describe('UsersController photo upload', () => {
     await expect(
       controller.uploadPhoto(user.id, user.id, photoFile()),
     ).rejects.toThrow('Database write failed');
-    expect(await readdir(uploadDir)).toEqual([]);
+    expect(s3.keys()).toEqual([]);
+  });
+
+  it('keeps the new photo if deleting the previous one fails', async () => {
+    const user = await usersService.create(newUser('Ada'));
+    const first = await controller.uploadPhoto(user.id, user.id, photoFile());
+    s3.failDelete = true;
+    vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+    const profile = await controller.uploadPhoto(user.id, user.id, photoFile());
+
+    expect(profile.photoUrl).not.toBe(first.photoUrl);
+    expect(s3.keys()).toEqual([keyOf(first.photoUrl), keyOf(profile.photoUrl)]);
+  });
+
+  it('saves nothing if the upload to S3 fails', async () => {
+    const user = await usersService.create(newUser('Ada'));
+    s3.failPut = true;
+
+    await expect(
+      controller.uploadPhoto(user.id, user.id, photoFile()),
+    ).rejects.toThrow('S3 upload failed');
+    expect((await usersService.getProfile(user.id)).photoUrl).toBe('');
   });
 });

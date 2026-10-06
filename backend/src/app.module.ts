@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { SupabaseModule } from './common/database/supabase.module.js';
+import { PhotoStorageModule } from './common/uploads/photo-storage.module.js';
 import { FollowsModule } from './follows/follows.module.js';
 import { TilesModule } from './tiles/tiles.module.js';
 import { UsersModule } from './users/users.module.js';
@@ -11,6 +12,7 @@ import { UsersModule } from './users/users.module.js';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     SupabaseModule,
+    PhotoStorageModule,
     UsersModule,
     FollowsModule,
     TilesModule,

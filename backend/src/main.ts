@@ -1,4 +1,3 @@
-import { join } from 'node:path';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -19,8 +18,6 @@ async function bootstrap() {
       process.env.SESSION_SECRET ?? 'pandanstreet-dev-secret',
     ),
   );
-  const dataDir = process.env.DATA_DIR ?? join(process.cwd(), 'data');
-  app.useStaticAssets(join(dataDir, 'uploads'), { prefix: '/uploads/' });
   await app.listen(process.env.PORT ?? 3001);
 }
 await bootstrap();

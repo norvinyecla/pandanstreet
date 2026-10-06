@@ -1,5 +1,4 @@
 import { useEffect, useId, useRef } from 'react';
-import { resolveAssetUrl } from '../api/client.ts';
 import type { BulletinItem } from '../api/types.ts';
 import { FeedAuthorLink } from './FeedAuthorLink.tsx';
 import { TileAge } from '../tiles/TileAge.tsx';
@@ -66,7 +65,7 @@ export function ItemTileOverlay({
         </div>
         <div className="flex min-h-0 flex-1 items-center justify-center px-2">
           <img
-            src={resolveAssetUrl(item.photoUrl)}
+            src={item.photoUrl}
             alt={item.caption}
             className="pointer-events-auto max-h-full max-w-full object-contain"
           />
