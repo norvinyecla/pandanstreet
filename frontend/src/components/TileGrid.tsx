@@ -18,14 +18,14 @@ const BADGE_STYLES: Record<BadgeColor, string> = {
 export function BadgeLozenge({ color }: { color: BadgeColor }) {
   return (
     <span
-      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${BADGE_STYLES[color]}`}
+      className={`badge badge-sm border-0 font-medium ${BADGE_STYLES[color]}`}
     >
       {BADGE_MESSAGES[color]}
     </span>
   );
 }
 
-const ACTION_CLASS = 'px-2 py-3 text-xs font-medium text-gray-600 underline';
+const ACTION_CLASS = 'link px-2 py-3 text-xs font-medium text-base-content/70';
 
 function TileCard({
   tile,
@@ -89,10 +89,10 @@ function TileCard({
   );
 
   return (
-    <li className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3 text-left">
+    <li className="card card-border gap-2 bg-base-100 p-3 text-left shadow-sm">
       {tile.type === 'text' ? (
         <div className="flex items-start justify-between gap-3">
-          <p className="min-w-0 flex-1 text-sm break-words text-gray-900">
+          <p className="min-w-0 flex-1 text-sm break-words text-base-content">
             {tile.text}
           </p>
           {actions}
@@ -102,11 +102,11 @@ function TileCard({
           <img
             src={resolveAssetUrl(tile.photoUrl)}
             alt={tile.caption}
-            className="aspect-square w-full rounded-md bg-gray-100 object-cover"
+            className="aspect-square w-full rounded-md bg-base-200 object-cover"
           />
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 flex-1 flex-col items-start gap-2">
-              <p className="text-sm break-words text-gray-900">
+              <p className="text-sm break-words text-base-content">
                 {tile.caption}
               </p>
               <BadgeLozenge color={tile.badgeColor} />
@@ -116,14 +116,14 @@ function TileCard({
         </>
       )}
       {isConfirmingDelete && (
-        <div className="flex items-center justify-between gap-3 border-t border-gray-100 pt-2">
-          <p className="text-sm text-gray-900">Delete this post?</p>
+        <div className="flex items-center justify-between gap-3 border-t border-base-200 pt-2">
+          <p className="text-sm text-base-content">Delete this post?</p>
           <div className="flex shrink-0 gap-2">
             <button
               type="button"
               onClick={() => setIsConfirmingDelete(false)}
               disabled={isDeleting}
-              className="min-h-11 rounded-md border border-gray-300 px-3 text-sm font-medium text-gray-700 disabled:opacity-50"
+              className="btn btn-outline min-h-11"
             >
               Cancel
             </button>
@@ -131,7 +131,7 @@ function TileCard({
               type="button"
               onClick={handleConfirmDelete}
               disabled={isDeleting}
-              className="min-h-11 rounded-md bg-red-600 px-3 text-sm font-medium text-white disabled:opacity-50"
+              className="btn btn-error min-h-11"
             >
               {isDeleting ? 'Deleting…' : 'Delete'}
             </button>
@@ -139,7 +139,7 @@ function TileCard({
         </div>
       )}
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-error">
           {error}
         </p>
       )}
@@ -157,7 +157,9 @@ export function TileGrid({
   onDelete?: (tile: Tile) => Promise<void>;
 }) {
   if (tiles.length === 0) {
-    return <p className="text-center text-sm text-gray-500">No tiles yet.</p>;
+    return (
+      <p className="text-center text-sm text-base-content/70">No tiles yet.</p>
+    );
   }
 
   return (

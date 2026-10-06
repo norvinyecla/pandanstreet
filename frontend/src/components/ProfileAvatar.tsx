@@ -19,7 +19,7 @@ export function ProfileAvatar({
       <img
         src={src}
         alt={`${name}'s profile photo`}
-        className={`${sizeClass} shrink-0 rounded-full bg-gray-100 object-cover`}
+        className={`${sizeClass} shrink-0 rounded-full bg-base-200 object-cover`}
       />
     );
   }
@@ -29,7 +29,7 @@ export function ProfileAvatar({
     <div
       data-testid="default-avatar"
       aria-hidden="true"
-      className={`${sizeClass} flex shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500`}
+      className={`${sizeClass} flex shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary`}
     >
       <svg
         viewBox="0 0 64 64"

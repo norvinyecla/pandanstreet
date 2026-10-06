@@ -17,7 +17,7 @@ Monorepo layout:
 - **Package manager:** yarn (use `yarn`, not `npm` or `pnpm`, for installs and scripts)
 - **Node version:** latest LTS. Pin it in an `.nvmrc` at the repo root once the project is scaffolded.
 - **Language:** TypeScript everywhere — both `/frontend` and `/backend`. No plain `.js` files.
-- **Frontend:** ReactJS, TailwindCSS (light mode only for now)
+- **Frontend:** ReactJS, TailwindCSS + DaisyUI (emerald theme, light mode only for now)
 - **Backend:** NestJS
 - **Data:** local CSV files under `backend/data/`. Uploaded photos are also saved to disk under `backend/data/` (e.g. `backend/data/uploads/`), referenced by path from the CSVs.
 - **Formatting:** Prettier, configured in the root `.prettierrc` (2-space indent, semicolons, single quotes, trailing commas). Run `yarn format` at the repo root before committing; CI fails PRs that don't pass `yarn format:check`.

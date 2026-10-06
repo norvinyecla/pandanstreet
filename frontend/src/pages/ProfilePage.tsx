@@ -118,13 +118,15 @@ export function ProfilePage() {
         name={profile.name}
         size="lg"
       />
-      <h1 className="text-xl font-semibold text-gray-900">{profile.name}</h1>
+      <h1 className="text-xl font-semibold text-base-content">
+        {profile.name}
+      </h1>
       {profile.bio && (
-        <p className="max-w-xs text-center text-sm text-gray-700">
+        <p className="max-w-xs text-center text-sm text-base-content/80">
           {profile.bio}
         </p>
       )}
-      <div className="flex gap-6 text-sm text-gray-600">
+      <div className="flex gap-6 text-sm text-base-content/70">
         {isOwnProfile ? (
           <>
             <Link to="/followers" className="flex min-h-11 items-center">
@@ -142,10 +144,7 @@ export function ProfilePage() {
         )}
       </div>
       {isOwnProfile ? (
-        <Link
-          to="/profile/edit"
-          className="min-h-11 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
-        >
+        <Link to="/profile/edit" className="btn btn-outline min-h-11">
           Edit profile
         </Link>
       ) : (
@@ -153,18 +152,18 @@ export function ProfilePage() {
           type="button"
           onClick={handleToggleFollow}
           disabled={isFollowActionPending}
-          className="min-h-11 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="btn btn-primary min-h-11"
         >
           {isFollowing ? 'Unfollow' : 'Follow'}
         </button>
       )}
       {actionError && (
-        <p role="alert" className="text-center text-sm text-red-600">
+        <p role="alert" className="text-center text-sm text-error">
           {actionError}
         </p>
       )}
       <div className="w-full pt-2">
-        <h2 className="pb-2 text-sm font-semibold text-gray-900">Tiles</h2>
+        <h2 className="pb-2 text-sm font-semibold text-base-content">Tiles</h2>
         <TileGrid
           tiles={tiles}
           isOwnProfile={isOwnProfile}

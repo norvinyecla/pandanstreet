@@ -39,13 +39,15 @@ export function FollowersPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold text-gray-900">Followers</h1>
+      <h1 className="text-xl font-semibold text-base-content">Followers</h1>
       {error ? (
         <LoadError message={error} onRetry={handleRetry} />
       ) : !followers ? (
         <UserListSkeleton withAction={false} />
       ) : followers.length === 0 ? (
-        <p className="text-center text-sm text-gray-500">No followers yet.</p>
+        <p className="text-center text-sm text-base-content/70">
+          No followers yet.
+        </p>
       ) : (
         <FollowUserList users={followers} />
       )}

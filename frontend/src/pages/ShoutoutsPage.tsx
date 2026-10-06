@@ -41,13 +41,13 @@ export function ShoutoutsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold text-gray-900">Shout-outs</h1>
+      <h1 className="text-xl font-semibold text-base-content">Shout-outs</h1>
       {error ? (
         <LoadError message={error} onRetry={handleRetry} />
       ) : !shoutouts ? (
         <ShoutoutsSkeleton />
       ) : shoutouts.length === 0 ? (
-        <p className="text-center text-sm text-gray-500">
+        <p className="text-center text-sm text-base-content/70">
           No shout-outs yet. Follow people to see their text tiles here.
         </p>
       ) : (
@@ -55,13 +55,13 @@ export function ShoutoutsPage() {
           {shoutouts.map((shoutout) => (
             <li
               key={shoutout.id}
-              className="flex flex-col gap-1 rounded-lg border border-gray-200 p-3"
+              className="card card-border gap-1 bg-base-100 p-3 shadow-sm"
             >
               <div className="flex items-center justify-between gap-2">
                 <FeedAuthorLink author={shoutout.author} showAvatar />
                 <TileAge createdAt={shoutout.createdAt} className="shrink-0" />
               </div>
-              <p className="text-sm text-gray-900">{shoutout.text}</p>
+              <p className="text-sm text-base-content">{shoutout.text}</p>
             </li>
           ))}
         </ul>

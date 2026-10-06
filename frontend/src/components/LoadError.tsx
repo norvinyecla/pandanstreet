@@ -8,13 +8,13 @@ export function LoadError({
 }) {
   return (
     <div className="flex flex-col items-center gap-3 pt-6">
-      <p role="alert" className="text-center text-sm text-red-600">
+      <p role="alert" className="text-center text-sm text-error">
         {message}
       </p>
       <button
         type="button"
         onClick={onRetry}
-        className="min-h-11 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
+        className="btn btn-outline min-h-11"
       >
         Try again
       </button>

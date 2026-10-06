@@ -8,7 +8,10 @@ export function TileAge({
   className?: string;
 }) {
   return (
-    <time dateTime={createdAt} className={`text-xs text-gray-500 ${className}`}>
+    <time
+      dateTime={createdAt}
+      className={`text-xs text-base-content/70 ${className}`}
+    >
       {formatTileAge(createdAt)}
     </time>
   );

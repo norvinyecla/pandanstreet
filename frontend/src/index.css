@@ -1,4 +1,18 @@
 @import 'tailwindcss';
+@plugin 'daisyui' {
+  themes: emerald --default;
+}
+
+/* Emerald with a deeper pandan green, and an error red dark enough for
+   error text on white. Both meet WCAG AA with white text (~5.3:1, ~5.6:1). */
+@plugin 'daisyui/theme' {
+  name: 'emerald';
+  default: true;
+  --color-primary: #2f7a3a;
+  --color-primary-content: #ffffff;
+  --color-error: #c62828;
+  --color-error-content: #ffffff;
+}
 
 :root {
   color-scheme: light only;
@@ -6,7 +20,6 @@
 
 body {
   margin: 0;
-  background-color: #fff;
 }
 
 @theme {

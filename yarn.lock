@@ -2386,6 +2386,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"daisyui@npm:^5.7.46":
+  version: 5.7.46
+  resolution: "daisyui@npm:5.7.46"
+  checksum: 10c0/26db9625961b3bc30e63e6166c8347065d6c6eb48b8b6e4d94d4d6ad4aa1400a66573349cae8a72e9306846b0285ceada83341383c5ba9cb3bd25a8592d496e3
+  languageName: node
+  linkType: hard
+
 "data-urls@npm:^7.0.0":
   version: 7.0.0
   resolution: "data-urls@npm:7.0.0"
@@ -2882,6 +2889,7 @@ __metadata:
     "@types/react": "npm:^19.2.18"
     "@types/react-dom": "npm:^19.2.7"
     "@vitejs/plugin-react": "npm:^6.1.1"
+    daisyui: "npm:^5.7.46"
     jsdom: "npm:^30.0.1"
     oxlint: "npm:^1.81.0"
     react: "npm:^19.2.8"

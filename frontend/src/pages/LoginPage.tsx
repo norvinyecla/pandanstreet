@@ -32,7 +32,7 @@ export function LoginPage() {
 
   return (
     <div className="flex flex-col gap-6 pt-8">
-      <h1 className="text-center text-xl font-semibold text-gray-900">
+      <h1 className="text-center text-xl font-semibold text-base-content">
         Welcome to pandanstreet
       </h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -59,7 +59,7 @@ export function LoginPage() {
           onChange={(event) => setPassword(event.target.value)}
         />
         {error && (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-error">
             {error}
           </p>
         )}
@@ -70,16 +70,16 @@ export function LoginPage() {
             username.trim().length === 0 ||
             password.length === 0
           }
-          className="min-h-11 rounded-md bg-gray-900 px-4 text-base font-medium text-white disabled:opacity-50"
+          className="btn btn-primary min-h-11 text-base"
         >
           {isSubmitting ? 'Logging in…' : 'Log in'}
         </button>
       </form>
-      <p className="text-center text-sm text-gray-600">
+      <p className="text-center text-sm text-base-content/70">
         New here?{' '}
         <Link
           to="/signup"
-          className="inline-block py-2 font-medium text-gray-900 underline"
+          className="inline-block py-2 link link-primary font-medium"
         >
           Create an account
         </Link>

@@ -39,7 +39,7 @@ describe('ToastProvider', () => {
 
     const toast = screen.getByText('Post created');
     expect(screen.getByRole('status')).toContainElement(toast);
-    expect(toast).toHaveClass('bg-green-600');
+    expect(toast).toHaveClass('alert-success');
 
     act(() => vi.advanceTimersByTime(TOAST_DURATION_MS - 1));
     expect(screen.getByText('Post created')).toBeInTheDocument();

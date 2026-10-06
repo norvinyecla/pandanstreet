@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 /** Grey placeholder shapes shown while a page's data loads. */
 function Skeleton({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div role="status" aria-label={label} className="animate-pulse">
+    <div role="status" aria-label={label}>
       <div aria-hidden="true">{children}</div>
     </div>
   );
@@ -18,7 +18,7 @@ function Block({
 }) {
   return (
     <div
-      className={`bg-gray-200 ${circle ? 'rounded-full' : 'rounded-md'} ${className}`}
+      className={`skeleton ${circle ? 'rounded-full' : 'rounded-md'} ${className}`}
     />
   );
 }
@@ -38,10 +38,7 @@ export function ProfileSkeleton() {
         <div className="flex w-full flex-col gap-3 pt-2">
           <Block className="h-4 w-12" />
           {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3"
-            >
+            <div key={i} className="card card-border gap-2 bg-base-100 p-3">
               <Block className="h-4 w-full" />
               <Block className="h-4 w-2/3" />
             </div>
@@ -57,10 +54,7 @@ export function ShoutoutsSkeleton() {
     <Skeleton label="Loading shout-outs">
       <div className="flex flex-col gap-3">
         {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3"
-          >
+          <div key={i} className="card card-border gap-2 bg-base-100 p-3">
             <div className="flex min-h-11 items-center gap-2">
               <Block className="h-8 w-8" circle />
               <Block className="h-4 w-24" />
@@ -104,7 +98,7 @@ export function UserListSkeleton({
         {Array.from({ length: rows }, (_, i) => (
           <div
             key={i}
-            className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2"
+            className="card card-border flex-row items-center justify-between gap-3 bg-base-100 px-3 py-2"
           >
             <div className="flex min-h-11 items-center gap-2">
               <Block className="h-8 w-8" circle />
