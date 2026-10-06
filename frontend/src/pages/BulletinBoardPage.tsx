@@ -45,13 +45,15 @@ export function BulletinBoardPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold text-gray-900">Bulletin Board</h1>
+      <h1 className="text-xl font-semibold text-base-content">
+        Bulletin Board
+      </h1>
       {error ? (
         <LoadError message={error} onRetry={handleRetry} />
       ) : !items ? (
         <BulletinBoardSkeleton />
       ) : items.length === 0 ? (
-        <p className="text-center text-sm text-gray-500">
+        <p className="text-center text-sm text-base-content/70">
           Nothing on the board yet. Follow people to see their item tiles here.
         </p>
       ) : (
@@ -67,13 +69,15 @@ export function BulletinBoardPage() {
                 <img
                   src={resolveAssetUrl(item.photoUrl)}
                   alt={item.caption}
-                  className="aspect-square w-full rounded-md bg-gray-100 object-cover"
+                  className="aspect-square w-full rounded-md bg-base-200 object-cover"
                 />
               </button>
               <div className="self-start">
                 <BadgeLozenge color={item.badgeColor} />
               </div>
-              <p className="truncate text-xs text-gray-900">{item.caption}</p>
+              <p className="truncate text-xs text-base-content">
+                {item.caption}
+              </p>
               <TileAge createdAt={item.createdAt} className="truncate" />
               <FeedAuthorLink author={item.author} showAvatar />
             </li>

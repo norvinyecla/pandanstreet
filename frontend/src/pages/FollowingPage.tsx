@@ -76,9 +76,9 @@ export function FollowingPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold text-gray-900">Following</h1>
+      <h1 className="text-xl font-semibold text-base-content">Following</h1>
       {actionError && (
-        <p role="alert" className="text-center text-sm text-red-600">
+        <p role="alert" className="text-center text-sm text-error">
           {actionError}
         </p>
       )}
@@ -87,7 +87,7 @@ export function FollowingPage() {
       ) : !following ? (
         <UserListSkeleton />
       ) : following.length === 0 ? (
-        <p className="text-center text-sm text-gray-500">
+        <p className="text-center text-sm text-base-content/70">
           You're not following anyone yet.
         </p>
       ) : (
@@ -100,7 +100,7 @@ export function FollowingPage() {
                 onClick={() => handleToggleFollow(user)}
                 disabled={pendingIds.has(user.id)}
                 aria-label={`Follow ${user.name}`}
-                className="min-h-11 shrink-0 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                className="btn btn-primary min-h-11 shrink-0"
               >
                 Follow
               </button>
@@ -110,7 +110,7 @@ export function FollowingPage() {
                 onClick={() => handleToggleFollow(user)}
                 disabled={pendingIds.has(user.id)}
                 aria-label={`Unfollow ${user.name}`}
-                className="min-h-11 shrink-0 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 disabled:opacity-50"
+                className="btn btn-outline min-h-11 shrink-0"
               >
                 Unfollow
               </button>

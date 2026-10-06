@@ -11,18 +11,18 @@ export function AuthField({ id, label, hint, ...inputProps }: AuthFieldProps) {
   const hintId = hint ? `${id}-hint` : undefined;
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm font-medium text-gray-700">
+      <label htmlFor={id} className="text-sm font-medium text-base-content/80">
         {label}
       </label>
       <input
         id={id}
         name={id}
         aria-describedby={hintId}
-        className="min-h-11 rounded-md border border-gray-300 px-3 text-base text-gray-900 focus:border-gray-500 focus:outline-none"
+        className="input min-h-11 w-full text-base"
         {...inputProps}
       />
       {hint && (
-        <p id={hintId} className="text-xs text-gray-500">
+        <p id={hintId} className="text-xs text-base-content/70">
           {hint}
         </p>
       )}

@@ -67,16 +67,13 @@ export function ProfileEditPage() {
 
   return (
     <div className="flex flex-col gap-4 pt-6">
-      <h1 className="text-center text-xl font-semibold text-gray-900">
+      <h1 className="text-center text-xl font-semibold text-base-content">
         Edit profile
       </h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col items-center gap-2">
           <ProfileAvatar src={previewSrc} name={currentUser.name} size="lg" />
-          <label
-            htmlFor="photo"
-            className="min-h-11 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700"
-          >
+          <label htmlFor="photo" className="btn btn-outline min-h-11">
             Choose photo
           </label>
           <input
@@ -90,10 +87,13 @@ export function ProfileEditPage() {
         </div>
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between">
-            <label htmlFor="bio" className="text-sm font-medium text-gray-700">
+            <label
+              htmlFor="bio"
+              className="text-sm font-medium text-base-content/80"
+            >
               Bio
             </label>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-base-content/70">
               {bio.length}/{BIO_MAX_LENGTH}
             </span>
           </div>
@@ -104,24 +104,24 @@ export function ProfileEditPage() {
             maxLength={BIO_MAX_LENGTH}
             value={bio}
             onChange={(event) => setBio(event.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-2 text-base text-gray-900 focus:border-gray-500 focus:outline-none"
+            className="textarea w-full text-base"
           />
         </div>
         {error && (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-error">
             {error}
           </p>
         )}
         <button
           type="submit"
           disabled={isSubmitting}
-          className="min-h-11 rounded-md bg-gray-900 px-4 text-base font-medium text-white disabled:opacity-50"
+          className="btn btn-primary min-h-11 text-base"
         >
           {isSubmitting ? 'Saving…' : 'Save'}
         </button>
         <Link
           to="/"
-          className="text-center text-sm font-medium text-gray-700 underline"
+          className="text-center link text-sm font-medium text-base-content/80"
         >
           Cancel
         </Link>

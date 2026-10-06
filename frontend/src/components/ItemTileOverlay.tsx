@@ -71,11 +71,11 @@ export function ItemTileOverlay({
             className="pointer-events-auto max-h-full max-w-full object-contain"
           />
         </div>
-        <div className="pointer-events-auto flex flex-col gap-2 rounded-t-2xl bg-white px-4 pt-4 pb-6">
+        <div className="pointer-events-auto flex flex-col gap-2 rounded-t-box bg-base-100 px-4 pt-4 pb-6">
           <div className="self-start">
             <BadgeLozenge color={item.badgeColor} />
           </div>
-          <h2 id={captionId} className="text-base text-gray-900">
+          <h2 id={captionId} className="text-base text-base-content">
             {item.caption}
           </h2>
           <TileAge createdAt={item.createdAt} />

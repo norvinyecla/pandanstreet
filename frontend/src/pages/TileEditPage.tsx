@@ -108,15 +108,18 @@ export function TileEditPage() {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-6">
-      <h1 className="text-center text-xl font-semibold text-gray-900">
+      <h1 className="text-center text-xl font-semibold text-base-content">
         Edit tile
       </h1>
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between">
-          <label htmlFor="text" className="text-sm font-medium text-gray-700">
+          <label
+            htmlFor="text"
+            className="text-sm font-medium text-base-content/80"
+          >
             Text
           </label>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-base-content/70">
             {text.length}/{TEXT_MAX_LENGTH}
           </span>
         </div>
@@ -127,24 +130,24 @@ export function TileEditPage() {
           maxLength={TEXT_MAX_LENGTH}
           value={text}
           onChange={(event) => setText(event.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-base text-gray-900 focus:border-gray-500 focus:outline-none"
+          className="textarea w-full text-base"
         />
       </div>
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-error">
           {error}
         </p>
       )}
       <button
         type="submit"
         disabled={isSubmitting}
-        className="min-h-11 rounded-md bg-gray-900 px-4 text-base font-medium text-white disabled:opacity-50"
+        className="btn btn-primary min-h-11 text-base"
       >
         {isSubmitting ? 'Saving…' : 'Save'}
       </button>
       <Link
         to="/"
-        className="text-center text-sm font-medium text-gray-700 underline"
+        className="text-center link text-sm font-medium text-base-content/80"
       >
         Cancel
       </Link>

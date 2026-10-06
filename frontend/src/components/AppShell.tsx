@@ -25,15 +25,15 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="mx-auto flex min-h-svh w-full max-w-md flex-col">
-      <header className="flex min-h-14 items-center justify-between border-b border-gray-200 px-4">
-        <Link to="/" className="text-lg font-semibold text-gray-900">
+      <header className="flex min-h-14 items-center justify-between border-b border-base-300 px-4">
+        <Link to="/" className="text-lg font-bold text-primary">
           pandanstreet
         </Link>
         {currentUser && (
           <button
             type="button"
             onClick={handleLogout}
-            className="min-h-11 min-w-11 px-3 text-sm font-medium text-gray-600"
+            className="min-h-11 min-w-11 px-3 text-sm font-medium text-base-content/70"
           >
             Log out
           </button>

@@ -31,31 +31,31 @@ function TypeSelector({
     <div className="flex flex-col gap-4">
       <h2
         id={SHEET_TITLE_ID}
-        className="text-center text-xl font-semibold text-gray-900"
+        className="text-center text-xl font-semibold text-base-content"
       >
         New tile
       </h2>
-      <p className="text-center text-sm text-gray-600">
+      <p className="text-center text-sm text-base-content/70">
         Choose a tile type to get started.
       </p>
       <div className="flex flex-col gap-3">
         <button
           type="button"
           onClick={() => onSelect('text')}
-          className="min-h-11 rounded-md border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-900"
+          className="min-h-11 rounded-box border border-base-300 px-4 py-3 text-left text-sm font-medium text-base-content hover:border-primary hover:bg-base-200"
         >
           Text
-          <span className="block text-xs font-normal text-gray-500">
+          <span className="block text-xs font-normal text-base-content/70">
             A short message, up to 140 characters.
           </span>
         </button>
         <button
           type="button"
           onClick={() => onSelect('item')}
-          className="min-h-11 rounded-md border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-900"
+          className="min-h-11 rounded-box border border-base-300 px-4 py-3 text-left text-sm font-medium text-base-content hover:border-primary hover:bg-base-200"
         >
           Item
-          <span className="block text-xs font-normal text-gray-500">
+          <span className="block text-xs font-normal text-base-content/70">
             A photo with a caption and a badge.
           </span>
         </button>
@@ -63,7 +63,7 @@ function TypeSelector({
       <button
         type="button"
         onClick={onCancel}
-        className="min-h-11 text-center text-sm font-medium text-gray-700 underline"
+        className="min-h-11 text-center link text-sm font-medium text-base-content/80"
       >
         Cancel
       </button>
@@ -111,16 +111,19 @@ function TextTileForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <h2
         id={SHEET_TITLE_ID}
-        className="text-center text-xl font-semibold text-gray-900"
+        className="text-center text-xl font-semibold text-base-content"
       >
         New text tile
       </h2>
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between">
-          <label htmlFor="text" className="text-sm font-medium text-gray-700">
+          <label
+            htmlFor="text"
+            className="text-sm font-medium text-base-content/80"
+          >
             Text
           </label>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-base-content/70">
             {text.length}/{TEXT_MAX_LENGTH}
           </span>
         </div>
@@ -131,25 +134,25 @@ function TextTileForm({
           maxLength={TEXT_MAX_LENGTH}
           value={text}
           onChange={(event) => setText(event.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-base text-gray-900 focus:border-gray-500 focus:outline-none"
+          className="textarea w-full text-base"
         />
       </div>
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-error">
           {error}
         </p>
       )}
       <button
         type="submit"
         disabled={isSubmitting}
-        className="min-h-11 rounded-md bg-gray-900 px-4 text-base font-medium text-white disabled:opacity-50"
+        className="btn btn-primary min-h-11 text-base"
       >
         {isSubmitting ? 'Posting…' : 'Post tile'}
       </button>
       <button
         type="button"
         onClick={onBack}
-        className="min-h-11 text-center text-sm font-medium text-gray-700 underline"
+        className="min-h-11 text-center link text-sm font-medium text-base-content/80"
       >
         Back
       </button>
@@ -241,7 +244,7 @@ function ItemTileForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <h2
         id={SHEET_TITLE_ID}
-        className="text-center text-xl font-semibold text-gray-900"
+        className="text-center text-xl font-semibold text-base-content"
       >
         New item tile
       </h2>
@@ -260,12 +263,12 @@ function ItemTileForm({
           />
           <label
             htmlFor="photo"
-            className={`relative flex aspect-square w-full cursor-pointer flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border-2 text-gray-500 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-gray-900 peer-focus-visible:ring-offset-2 active:border-gray-500 ${
+            className={`relative flex aspect-square w-full cursor-pointer flex-col items-center justify-center gap-1 overflow-hidden rounded-box border-2 text-base-content/70 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-2 active:border-primary ${
               photoPreviewUrl
                 ? 'border-transparent'
                 : photoError
-                  ? 'border-dashed border-red-400 bg-red-50'
-                  : 'border-dashed border-gray-300 bg-gray-50 hover:border-gray-400'
+                  ? 'border-dashed border-error bg-error/10'
+                  : 'border-dashed border-base-300 bg-base-200 hover:border-primary'
             }`}
           >
             {photoPreviewUrl ? (
@@ -303,14 +306,14 @@ function ItemTileForm({
             <p
               id="photo-error"
               role="alert"
-              className="text-center text-xs leading-tight text-red-600"
+              className="text-center text-xs leading-tight text-error"
             >
               {photoError}
             </p>
           ) : (
             <p
               id="photo-hint"
-              className="text-center text-xs leading-tight text-gray-500"
+              className="text-center text-xs leading-tight text-base-content/70"
             >
               JPG, PNG or WebP, up to 5MB
             </p>
@@ -321,11 +324,11 @@ function ItemTileForm({
             <div className="flex items-center justify-between">
               <label
                 htmlFor="caption"
-                className="text-sm font-medium text-gray-700"
+                className="text-sm font-medium text-base-content/80"
               >
                 Caption
               </label>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-base-content/70">
                 {caption.length}/{CAPTION_MAX_LENGTH}
               </span>
             </div>
@@ -336,13 +339,13 @@ function ItemTileForm({
               maxLength={CAPTION_MAX_LENGTH}
               value={caption}
               onChange={(event) => setCaption(event.target.value)}
-              className="rounded-md border border-gray-300 px-3 py-2 text-base text-gray-900 focus:border-gray-500 focus:outline-none"
+              className="input min-h-11 w-full text-base"
             />
           </div>
           <div className="flex flex-col gap-1">
             <label
               htmlFor="badgeColor"
-              className="text-sm font-medium text-gray-700"
+              className="text-sm font-medium text-base-content/80"
             >
               Badge
             </label>
@@ -353,7 +356,7 @@ function ItemTileForm({
               onChange={(event) =>
                 setBadgeColor(event.target.value as BadgeColor)
               }
-              className="min-h-11 rounded-md border border-gray-300 px-3 py-2 text-base text-gray-900 focus:border-gray-500 focus:outline-none"
+              className="select min-h-11 w-full text-base"
             >
               {BADGE_COLORS.map((color) => (
                 <option key={color} value={color}>
@@ -366,21 +369,21 @@ function ItemTileForm({
         </div>
       </div>
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-error">
           {error}
         </p>
       )}
       <button
         type="submit"
         disabled={isSubmitting}
-        className="min-h-11 rounded-md bg-gray-900 px-4 text-base font-medium text-white disabled:opacity-50"
+        className="btn btn-primary min-h-11 text-base"
       >
         {isSubmitting ? 'Posting…' : 'Post tile'}
       </button>
       <button
         type="button"
         onClick={onBack}
-        className="min-h-11 text-center text-sm font-medium text-gray-700 underline"
+        className="min-h-11 text-center link text-sm font-medium text-base-content/80"
       >
         Back
       </button>
@@ -433,7 +436,7 @@ export function AddTileSheet({
         aria-modal="true"
         aria-labelledby={SHEET_TITLE_ID}
         tabIndex={-1}
-        className="absolute inset-x-0 bottom-0 mx-auto h-[50svh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white px-4 pt-5 pb-6 shadow-lg focus:outline-none motion-safe:animate-slide-up"
+        className="absolute inset-x-0 bottom-0 mx-auto h-[50svh] w-full max-w-md overflow-y-auto rounded-t-box bg-base-100 px-4 pt-5 pb-6 shadow-lg focus:outline-none motion-safe:animate-slide-up"
       >
         {type === null ? (
           <TypeSelector onSelect={setType} onCancel={onClose} />
