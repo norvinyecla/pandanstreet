@@ -156,6 +156,32 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
 - Check that the full-screen overlay's author link (Phase 17) also works, and that the tap target stays at least 44px
 - Tests: Bulletin Board author link renders the avatar and points to `/users/:id`
 
+## Phase 19 — Username Profile URLs
+
+- Profile URLs use the human-readable username instead of the user id: `/users/:username` (e.g. `/users/lovelace`). The id was used before because the display name used to be the login name; since Phase 12 the unique `username` is separate from the display name
+- Old id-based URLs (`/users/<uuid>`) are dropped, not redirected — they show the profile's "User not found" error
+- **Backend:**
+  - `GET /users/by-username/:username` returns the profile (case-insensitive; `404` if unknown), unauthenticated like `GET /users/:id`
+  - `username` added to the profile, follow-list (Following, Followers, Plaza) and feed author DTOs so the frontend can build links
+  - Id-based endpoints (`/users/:id/bio`, `/users/:id/photo`, `/tiles/:userId`, `/follows/...`) are unchanged
+- **Frontend:**
+  - `FeedAuthorLink` links to `/users/:username`; the profile page looks the user up by username, then loads tiles and followers by the returned id
+  - Visiting your own username shows your own profile (edit link, no Follow button)
+  - The profile page shows `@username` under the display name
+- Tests: lookup by username (found, case-insensitive, unknown), `username` in profile DTO; profile page loads by username, own username is the own profile, unknown username shows the error, `@username` shown; author links point to `/users/:username`
+
+## Phase 20 — Supabase Database
+
+- **Backend only:** replace the CSV files with Supabase (Postgres); API responses are unchanged, so the frontend needs no changes
+- Local development uses the Supabase CLI (`supabase` devDependency, Docker): `yarn db:start` / `db:stop` / `db:status` / `db:reset` in `/backend`; config and migrations in `backend/supabase/`
+- Schema migration creates `users`, `follows`, `tiles`, `tile_text`, `tile_item` with uuid ids, foreign keys (`on delete cascade`), unique username, follow pair primary key, and check constraints (no self-follow, tile type, badge color, 140-char text/caption/bio)
+- RLS enabled on every table with no policies; the backend connects with `@supabase/supabase-js` and the service-role key (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` in `backend/.env`)
+- Postgres functions for multi-row writes: `create_tile` (archives the oldest active tile and inserts the new one in one transaction, locking the author's row) and `set_user_photo` (returns the replaced photo path so Phase 14 cleanup still works)
+- Session auth (scrypt + express-session) and on-disk photo uploads are unchanged
+- CSV store code, the CSV files and the `csv-parse` / `csv-stringify` dependencies are removed; existing dev data isn't migrated (the CSVs held no rows)
+- CI starts local Supabase before the backend tests
+- Tests: existing service, controller and e2e tests run against local Supabase (tables wiped between tests); plus concurrent tile creation keeps at most 3 active
+
 ## Phase 21 — Theme (DaisyUI Emerald)
 
 - **Frontend only:** add DaisyUI 5 as a dev dependency and enable it in `src/index.css` via `@plugin 'daisyui'` (Tailwind v4, no config file)
@@ -182,7 +208,6 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
 - Dark mode
 - OAuth / third-party login
 - Password reset, email verification, login rate limiting
-- Real database (Postgres, etc.)
 - Editing Item tiles
 - Notifications, comments, likes, or any interaction beyond follow
 

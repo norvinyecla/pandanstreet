@@ -15,7 +15,7 @@ function makeItem(index: number): BulletinItem {
     photoUrl: `/uploads/${index}.png`,
     caption: `Item ${index}`,
     badgeColor: 'green',
-    author: { id: 'u2', name: 'Grace', photoUrl: '' },
+    author: { id: 'u2', username: 'grace', name: 'Grace', photoUrl: '' },
   };
 }
 
@@ -55,11 +55,53 @@ describe('BulletinBoardPage', () => {
     expect(screen.getByText('Hello!')).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Grace' })[0]).toHaveAttribute(
       'href',
-      '/users/u2',
+      '/users/grace',
     );
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
       'http://localhost:3001/tiles/feed/bulletin-board',
     );
+  });
+
+  it("renders the author's avatar inside a link to their profile", async () => {
+    mockFeed(
+      Promise.resolve(
+        new Response(
+          JSON.stringify([
+            {
+              ...makeItem(1),
+              author: {
+                id: 'u3',
+                username: 'ada',
+                name: 'Ada',
+                photoUrl: '/uploads/ada.png',
+              },
+            },
+          ]),
+        ),
+      ),
+    );
+
+    renderPage();
+
+    const avatar = await screen.findByAltText("Ada's profile photo");
+    expect(avatar).toHaveAttribute(
+      'src',
+      'http://localhost:3001/uploads/ada.png',
+    );
+    const link = avatar.closest('a');
+    expect(link).toHaveAttribute('href', '/users/ada');
+    expect(link).toHaveTextContent('Ada');
+    expect(link).toHaveClass('min-h-11');
+  });
+
+  it('renders the default avatar for authors without a photo', async () => {
+    mockFeed(Promise.resolve(new Response(JSON.stringify([makeItem(1)]))));
+
+    renderPage();
+
+    const link = await screen.findByRole('link', { name: 'Grace' });
+    expect(link).toHaveAttribute('href', '/users/grace');
+    expect(within(link).getByTestId('default-avatar')).toBeInTheDocument();
   });
 
   it(`shows at most ${BULLETIN_BOARD_LIMIT} item tiles`, async () => {
@@ -149,7 +191,12 @@ describe('BulletinBoardPage', () => {
                   Date.now() - 2 * 60 * 60 * 1000,
                 ).toISOString(),
                 badgeColor: 'red',
-                author: { id: 'u3', name: 'Ada', photoUrl: '' },
+                author: {
+                  id: 'u3',
+                  username: 'ada',
+                  name: 'Ada',
+                  photoUrl: '',
+                },
               },
             ]),
           ),
@@ -177,11 +224,22 @@ describe('BulletinBoardPage', () => {
       expect(age.tagName).toBe('TIME');
       expect(within(dialog).getByRole('link', { name: 'Ada' })).toHaveAttribute(
         'href',
-        '/users/u3',
+        '/users/ada',
       );
       expect(
         within(dialog).getByRole('button', { name: 'Close' }),
       ).toHaveFocus();
+    });
+
+    it("shows the author's avatar in a link with a 44px tap target", async () => {
+      await openSecondTile();
+
+      const link = within(screen.getByRole('dialog')).getByRole('link', {
+        name: 'Ada',
+      });
+      expect(link).toHaveAttribute('href', '/users/ada');
+      expect(link).toHaveClass('min-h-11');
+      expect(within(link).getByTestId('default-avatar')).toBeInTheDocument();
     });
 
     it('closes via the Close button and returns focus to the tile', async () => {

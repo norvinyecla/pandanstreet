@@ -1,35 +1,37 @@
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import {
   BadRequestException,
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { createCsvStores, type CsvStores } from '../common/csv/csv-stores.js';
+import {
+  createTestSupabase,
+  resetDatabase,
+} from '../common/database/test-database.js';
 import { TilesService } from '../tiles/tiles.service.js';
 import { newUser } from '../users/test-fixtures.js';
 import { UsersService } from '../users/users.service.js';
 import { FollowsService } from './follows.service.js';
 
 describe('FollowsService', () => {
-  let dir: string;
-  let stores: CsvStores;
+  const db = createTestSupabase();
   let usersService: UsersService;
   let tilesService: TilesService;
   let service: FollowsService;
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'follows-service-'));
-    stores = createCsvStores(dir);
-    usersService = new UsersService(stores);
-    tilesService = new TilesService(stores, usersService);
-    service = new FollowsService(stores, usersService);
+    await resetDatabase(db);
+    usersService = new UsersService(db);
+    tilesService = new TilesService(db, usersService);
+    service = new FollowsService(db, usersService);
   });
 
-  afterEach(async () => {
-    await rm(dir, { recursive: true, force: true });
-  });
+  async function followRows() {
+    const { data } = await db
+      .from('follows')
+      .select('follower_id, followee_id')
+      .throwOnError();
+    return data;
+  }
 
   it('follow creates a follow relationship', async () => {
     const alice = await usersService.create(newUser('Alice'));
@@ -37,9 +39,9 @@ describe('FollowsService', () => {
 
     await service.follow(alice.id, bob.id);
 
-    const rows = await stores.follows.readAll();
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ followerId: alice.id, followeeId: bob.id });
+    expect(await followRows()).toEqual([
+      { follower_id: alice.id, followee_id: bob.id },
+    ]);
   });
 
   it('follow throws BadRequestException on self-follow', async () => {
@@ -75,8 +77,7 @@ describe('FollowsService', () => {
 
     await service.unfollow(alice.id, bob.id);
 
-    const rows = await stores.follows.readAll();
-    expect(rows).toHaveLength(0);
+    expect(await followRows()).toEqual([]);
   });
 
   it('unfollow throws NotFoundException when not following', async () => {
@@ -173,10 +174,11 @@ describe('FollowsService', () => {
     const staleCreatedAt = new Date(
       Date.now() - 25 * 60 * 60 * 1000,
     ).toISOString();
-    await stores.tiles.update(
-      (record) => record.id === staleTile.id,
-      (record) => ({ ...record, createdAt: staleCreatedAt }),
-    );
+    await db
+      .from('tiles')
+      .update({ created_at: staleCreatedAt })
+      .eq('id', staleTile.id)
+      .throwOnError();
 
     const plaza = await service.getPlaza(alice.id);
 

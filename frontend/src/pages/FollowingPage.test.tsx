@@ -7,6 +7,7 @@ import { FollowingPage } from './FollowingPage.tsx';
 
 const me = {
   id: 'u1',
+  username: 'ada',
   name: 'Ada',
   photoUrl: '',
   bio: '',
@@ -52,8 +53,13 @@ describe('FollowingPage', () => {
       '/auth/me': () => jsonResponse(me),
       '/follows/u1/following': () =>
         jsonResponse([
-          { id: 'u2', name: 'Grace', photoUrl: '' },
-          { id: 'u3', name: 'Linus', photoUrl: '/uploads/l.png' },
+          { id: 'u2', username: 'grace', name: 'Grace', photoUrl: '' },
+          {
+            id: 'u3',
+            username: 'linus',
+            name: 'Linus',
+            photoUrl: '/uploads/l.png',
+          },
         ]),
     });
 
@@ -63,7 +69,7 @@ describe('FollowingPage', () => {
     expect(items).toHaveLength(2);
     expect(screen.getByRole('link', { name: 'Grace' })).toHaveAttribute(
       'href',
-      '/users/u2',
+      '/users/grace',
     );
     expect(screen.getByAltText("Linus's profile photo")).toBeInTheDocument();
     expect(
@@ -76,8 +82,8 @@ describe('FollowingPage', () => {
       '/auth/me': () => jsonResponse(me),
       '/follows/u1/following': () =>
         jsonResponse([
-          { id: 'u2', name: 'Grace', photoUrl: '' },
-          { id: 'u3', name: 'Linus', photoUrl: '' },
+          { id: 'u2', username: 'grace', name: 'Grace', photoUrl: '' },
+          { id: 'u3', username: 'linus', name: 'Linus', photoUrl: '' },
         ]),
       'DELETE /follows/u2': () =>
         Promise.resolve(new Response(null, { status: 204 })),
@@ -118,7 +124,9 @@ describe('FollowingPage', () => {
     mockFetch({
       '/auth/me': () => jsonResponse(me),
       '/follows/u1/following': () =>
-        jsonResponse([{ id: 'u2', name: 'Grace', photoUrl: '' }]),
+        jsonResponse([
+          { id: 'u2', username: 'grace', name: 'Grace', photoUrl: '' },
+        ]),
       'DELETE /follows/u2': () =>
         jsonResponse({ message: 'Not following this user' }, 404),
     });
@@ -156,7 +164,9 @@ describe('FollowingPage', () => {
       '/follows/u1/following': () =>
         ++attempts === 1
           ? jsonResponse({ message: 'Server error' }, 500)
-          : jsonResponse([{ id: 'u2', name: 'Grace', photoUrl: '' }]),
+          : jsonResponse([
+              { id: 'u2', username: 'grace', name: 'Grace', photoUrl: '' },
+            ]),
     });
 
     const user = userEvent.setup();
@@ -180,8 +190,8 @@ describe('FollowingPage', () => {
       '/auth/me': () => jsonResponse(me),
       '/follows/u1/following': () =>
         jsonResponse([
-          { id: 'u2', name: 'Grace', photoUrl: '' },
-          { id: 'u3', name: 'Linus', photoUrl: '' },
+          { id: 'u2', username: 'grace', name: 'Grace', photoUrl: '' },
+          { id: 'u3', username: 'linus', name: 'Linus', photoUrl: '' },
         ]),
       'DELETE /follows/u2': pending('u2'),
       'DELETE /follows/u3': pending('u3'),

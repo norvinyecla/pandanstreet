@@ -1,5 +1,6 @@
 export interface FeedAuthorDto {
   id: string;
+  username: string;
   name: string;
   photoUrl: string;
 }

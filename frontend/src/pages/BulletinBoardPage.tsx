@@ -79,7 +79,7 @@ export function BulletinBoardPage() {
                 {item.caption}
               </p>
               <TileAge createdAt={item.createdAt} className="truncate" />
-              <FeedAuthorLink author={item.author} />
+              <FeedAuthorLink author={item.author} showAvatar />
             </li>
           ))}
         </ul>

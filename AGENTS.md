@@ -9,7 +9,8 @@ Monorepo layout:
 ```
 /frontend   — ReactJS + TailwindCSS
 /backend    — NestJS
-/backend/data — CSV data files and uploaded photos
+/backend/data — uploaded photos
+/backend/supabase — Supabase CLI config and SQL migrations
 ```
 
 ## Tooling
@@ -19,13 +20,14 @@ Monorepo layout:
 - **Language:** TypeScript everywhere — both `/frontend` and `/backend`. No plain `.js` files.
 - **Frontend:** ReactJS, TailwindCSS + DaisyUI (emerald theme, light mode only for now)
 - **Backend:** NestJS
-- **Data:** local CSV files under `backend/data/`. Uploaded photos are also saved to disk under `backend/data/` (e.g. `backend/data/uploads/`), referenced by path from the CSVs.
+- **Data:** Supabase (Postgres), run locally with the Supabase CLI (a `supabase` devDependency; needs Docker). Schema changes go in a new file under `backend/supabase/migrations/` — never edit a migration that has already been merged. Uploaded photos are saved to disk under `backend/data/uploads/`, referenced by path from the database.
 - **Formatting:** Prettier, configured in the root `.prettierrc` (2-space indent, semicolons, single quotes, trailing commas). Run `yarn format` at the repo root before committing; CI fails PRs that don't pass `yarn format:check`.
 
 ## Running the App
 
 - **Node version:** run `nvm use` at the repo root before starting either dev server, to pick up the pinned version from `.nvmrc`. A newer Node (e.g. 23.x) can break `nest start --watch` with an `ERR_REQUIRE_CYCLE_MODULE` error.
 - **Frontend dev server:** `yarn dev` in `/frontend`, runs on `http://localhost:3000`
+- **Database:** `yarn db:start` in `/backend` starts local Supabase (API on `http://127.0.0.1:54321`, Studio on `http://127.0.0.1:54323`). Copy the API URL and service-role key from `yarn db:status` into `backend/.env`. `yarn db:reset` re-applies the migrations to an empty database.
 - **Backend dev server:** `yarn start:dev` in `/backend`, runs on `http://localhost:3001`
 - Frontend calls the backend API at `http://localhost:3001` in development. CORS must be enabled on the backend for `http://localhost:3000`.
 - Environment-specific config (API URL, port, upload size limits, etc.) belongs in `.env` files (`frontend/.env`, `backend/.env`), not hardcoded. Provide `.env.example` files for both packages.
@@ -36,7 +38,7 @@ Before considering any task done, agents should run:
 
 1. **Lint** — oxlint, in whichever package(s) were touched
 2. **Type check** — `tsc --noEmit`
-3. **Tests** — Vitest
+3. **Tests** — Vitest (backend tests need local Supabase running; they wipe its tables)
 4. **Manual browser check** — start the dev server and manually verify UI changes actually work in a browser (not just that tests pass)
 
 ## Testing Policy
@@ -52,11 +54,11 @@ Before considering any task done, agents should run:
 
 ## Data Model Notes
 
-Follow the CSV schema drafted in [README.md](README.md) (`users.csv`, `follows.csv`, `tiles.csv`, `tile_text.csv`, `tile_item.csv`). Keep schema changes reflected in both the README and the actual CSV read/write code.
+Follow the schema in [README.md](README.md) (`users`, `follows`, `tiles`, `tile_text`, `tile_item`). Keep schema changes reflected in both the README and a migration under `backend/supabase/migrations/`.
 
-- Archiving a tile means setting `archived = true` in `tiles.csv` — never delete the row.
+- Archiving a tile means setting `archived = true` in `tiles` — never delete the row.
 - Only **Text** tiles are editable after creation. **Item** tiles are immutable once created.
-- **CSV concurrency:** this is a single-instance prototype, not a multi-server deployment. Reads/writes to each CSV file should go through a single in-process write queue (or mutex) per file to avoid interleaved writes corrupting the file. Do not introduce a real database or external locking system for this — ask the user first if a scenario seems to need it.
+- **Database access:** only the backend talks to Supabase, through the `SUPABASE_CLIENT` provider (service-role key, server-side only). Keep RLS enabled on every table. Writes that must be atomic across rows (e.g. create a tile + archive the oldest) go in a Postgres function called via `rpc`, not in several separate requests.
 
 ## Backend (NestJS) Conventions
 

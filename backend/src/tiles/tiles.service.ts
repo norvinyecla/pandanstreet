@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   ForbiddenException,
@@ -6,42 +5,73 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CSV_STORES } from '../common/csv/csv.module.js';
-import type { CsvStores } from '../common/csv/csv-stores.js';
-import type { TileRecord } from '../common/csv/entities.js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import {
+  isUuid,
+  toIsoString,
+  type BadgeColor,
+  type TileRow,
+} from '../common/database/entities.js';
+import { SUPABASE_CLIENT } from '../common/database/supabase.module.js';
 import { UsersService } from '../users/users.service.js';
-import type { BulletinItemDto, ShoutoutDto } from './dto/feed.dto.js';
+import type {
+  BulletinItemDto,
+  FeedAuthorDto,
+  ShoutoutDto,
+} from './dto/feed.dto.js';
 import type { TileDto } from './dto/tile.dto.js';
 
-const MAX_ACTIVE_TILES = 3;
 const SHOUTOUTS_LIMIT = 20;
 const BULLETIN_BOARD_LIMIT = 21;
+
+const TILE_COLUMNS = 'id, user_id, type, created_at, archived';
+
+interface TileTextRow {
+  text: string;
+}
+
+interface TileItemRow {
+  photo_url: string;
+  caption: string;
+  badge_color: BadgeColor;
+}
+
+interface AuthorRow {
+  id: string;
+  username: string;
+  name: string;
+  photo_url: string;
+}
+
+function toAuthorDto(row: AuthorRow): FeedAuthorDto {
+  return {
+    id: row.id,
+    username: row.username,
+    name: row.name,
+    photoUrl: row.photo_url,
+  };
+}
 
 @Injectable()
 export class TilesService {
   constructor(
-    @Inject(CSV_STORES) private readonly stores: CsvStores,
+    @Inject(SUPABASE_CLIENT) private readonly db: SupabaseClient,
     private readonly usersService: UsersService,
   ) {}
 
+  /** Creating a tile archives the author's oldest active tile when they're already at 3 (see `create_tile`). */
   async createText(userId: string, text: string): Promise<TileDto> {
     await this.ensureUserExists(userId);
-    await this.archiveOldestIfAtLimit(userId);
-
-    const tile = await this.stores.tiles.append({
-      id: randomUUID(),
-      userId,
-      type: 'text',
-      createdAt: new Date().toISOString(),
-      archived: false,
+    const tile = await this.createTile({
+      p_user_id: userId,
+      p_type: 'text',
+      p_text: text,
     });
-    await this.stores.tileText.append({ tileId: tile.id, text });
-
     return {
       id: tile.id,
       userId,
       type: 'text',
-      createdAt: tile.createdAt,
+      createdAt: toIsoString(tile.created_at),
       text,
     };
   }
@@ -50,30 +80,21 @@ export class TilesService {
     userId: string,
     photoUrl: string,
     caption: string,
-    badgeColor: 'red' | 'yellow' | 'green',
+    badgeColor: BadgeColor,
   ): Promise<TileDto> {
     await this.ensureUserExists(userId);
-    await this.archiveOldestIfAtLimit(userId);
-
-    const tile = await this.stores.tiles.append({
-      id: randomUUID(),
-      userId,
-      type: 'item',
-      createdAt: new Date().toISOString(),
-      archived: false,
+    const tile = await this.createTile({
+      p_user_id: userId,
+      p_type: 'item',
+      p_photo_url: photoUrl,
+      p_caption: caption,
+      p_badge_color: badgeColor,
     });
-    await this.stores.tileItem.append({
-      tileId: tile.id,
-      photoUrl,
-      caption,
-      badgeColor,
-    });
-
     return {
       id: tile.id,
       userId,
       type: 'item',
-      createdAt: tile.createdAt,
+      createdAt: toIsoString(tile.created_at),
       photoUrl,
       caption,
       badgeColor,
@@ -85,81 +106,87 @@ export class TilesService {
     userId: string,
     text: string,
   ): Promise<TileDto> {
-    const tiles = await this.stores.tiles.readAll();
-    const tile = tiles.find((t) => t.id === tileId);
+    const tile = await this.findTile(tileId);
     if (!tile) throw new NotFoundException('Tile not found');
-    if (tile.userId !== userId) {
+    if (tile.user_id !== userId) {
       throw new ForbiddenException("Cannot edit another user's tile");
     }
     if (tile.type !== 'text') {
       throw new BadRequestException('Only Text tiles can be edited');
     }
 
-    await this.stores.tileText.update(
-      (record) => record.tileId === tileId,
-      (record) => ({ ...record, text }),
-    );
+    await this.db
+      .from('tile_text')
+      .update({ text })
+      .eq('tile_id', tileId)
+      .throwOnError();
 
     return {
       id: tile.id,
       userId,
       type: 'text',
-      createdAt: tile.createdAt,
+      createdAt: toIsoString(tile.created_at),
       text,
     };
   }
 
   /** Removes a tile from view by archiving it; the row is kept, per the data model rules. */
   async archive(tileId: string, userId: string): Promise<void> {
-    const tiles = await this.stores.tiles.readAll();
-    const tile = tiles.find((t) => t.id === tileId);
+    const tile = await this.findTile(tileId);
     if (!tile || tile.archived) throw new NotFoundException('Tile not found');
-    if (tile.userId !== userId) {
+    if (tile.user_id !== userId) {
       throw new ForbiddenException("Cannot delete another user's tile");
     }
 
-    await this.stores.tiles.update(
-      (record) => record.id === tileId,
-      (record): TileRecord => ({ ...record, archived: true }),
-    );
+    await this.db
+      .from('tiles')
+      .update({ archived: true })
+      .eq('id', tileId)
+      .throwOnError();
   }
 
   async getActiveTiles(userId: string): Promise<TileDto[]> {
     await this.ensureUserExists(userId);
 
-    const tiles = await this.stores.tiles.readAll();
-    const active = tiles
-      .filter((tile) => tile.userId === userId && !tile.archived)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const { data } = await this.db
+      .from('tiles')
+      .select(
+        `${TILE_COLUMNS}, tile_text(text), tile_item(photo_url, caption, badge_color)`,
+      )
+      .eq('user_id', userId)
+      .eq('archived', false)
+      .order('created_at', { ascending: false })
+      .throwOnError()
+      .overrideTypes<
+        (TileRow & {
+          tile_text: TileTextRow | null;
+          tile_item: TileItemRow | null;
+        })[],
+        { merge: false }
+      >();
 
-    const [textRecords, itemRecords] = await Promise.all([
-      this.stores.tileText.readAll(),
-      this.stores.tileItem.readAll(),
-    ]);
-
-    return active
+    return data
       .map((tile): TileDto | undefined => {
+        const createdAt = toIsoString(tile.created_at);
         if (tile.type === 'text') {
-          const record = textRecords.find((r) => r.tileId === tile.id);
-          if (!record) return undefined;
+          if (!tile.tile_text) return undefined;
           return {
             id: tile.id,
-            userId: tile.userId,
+            userId: tile.user_id,
             type: 'text',
-            createdAt: tile.createdAt,
-            text: record.text,
+            createdAt,
+            text: tile.tile_text.text,
           };
         }
-        const record = itemRecords.find((r) => r.tileId === tile.id);
-        if (!record) return undefined;
+        if (!tile.tile_item) return undefined;
         return {
           id: tile.id,
-          userId: tile.userId,
+          userId: tile.user_id,
           type: 'item',
-          createdAt: tile.createdAt,
-          photoUrl: record.photoUrl,
-          caption: record.caption,
-          badgeColor: record.badgeColor,
+          createdAt,
+          photoUrl: tile.tile_item.photo_url,
+          caption: tile.tile_item.caption,
+          badgeColor: tile.tile_item.badge_color,
         };
       })
       .filter((dto): dto is TileDto => dto !== undefined);
@@ -169,110 +196,105 @@ export class TilesService {
   async getShoutouts(userId: string): Promise<ShoutoutDto[]> {
     await this.ensureUserExists(userId);
     const followeeIds = await this.getFolloweeIds(userId);
-    if (followeeIds.size === 0) return [];
+    if (followeeIds.length === 0) return [];
 
-    const [tiles, textRecords, users] = await Promise.all([
-      this.stores.tiles.readAll(),
-      this.stores.tileText.readAll(),
-      this.stores.users.readAll(),
-    ]);
-    const userById = new Map(users.map((user) => [user.id, user]));
-
-    return tiles
-      .filter(
-        (tile) =>
-          tile.type === 'text' &&
-          !tile.archived &&
-          followeeIds.has(tile.userId),
+    const { data } = await this.db
+      .from('tiles')
+      .select(
+        'id, created_at, tile_text!inner(text), author:users(id, username, name, photo_url)',
       )
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .slice(0, SHOUTOUTS_LIMIT)
-      .map((tile): ShoutoutDto | undefined => {
-        const record = textRecords.find((r) => r.tileId === tile.id);
-        const author = userById.get(tile.userId);
-        if (!record || !author) return undefined;
-        return {
-          id: tile.id,
-          createdAt: tile.createdAt,
-          text: record.text,
-          author: {
-            id: author.id,
-            name: author.name,
-            photoUrl: author.photoUrl,
-          },
-        };
-      })
-      .filter((dto): dto is ShoutoutDto => dto !== undefined);
+      .eq('type', 'text')
+      .eq('archived', false)
+      .in('user_id', followeeIds)
+      .order('created_at', { ascending: false })
+      .limit(SHOUTOUTS_LIMIT)
+      .throwOnError()
+      .overrideTypes<
+        {
+          id: string;
+          created_at: string;
+          tile_text: TileTextRow;
+          author: AuthorRow;
+        }[],
+        { merge: false }
+      >();
+
+    return data.map((tile) => ({
+      id: tile.id,
+      createdAt: toIsoString(tile.created_at),
+      text: tile.tile_text.text,
+      author: toAuthorDto(tile.author),
+    }));
   }
 
   /** Active Item tiles from profiles `userId` follows, most recent first, capped at 21. */
   async getBulletinBoard(userId: string): Promise<BulletinItemDto[]> {
     await this.ensureUserExists(userId);
     const followeeIds = await this.getFolloweeIds(userId);
-    if (followeeIds.size === 0) return [];
+    if (followeeIds.length === 0) return [];
 
-    const [tiles, itemRecords, users] = await Promise.all([
-      this.stores.tiles.readAll(),
-      this.stores.tileItem.readAll(),
-      this.stores.users.readAll(),
-    ]);
-    const userById = new Map(users.map((user) => [user.id, user]));
-
-    return tiles
-      .filter(
-        (tile) =>
-          tile.type === 'item' &&
-          !tile.archived &&
-          followeeIds.has(tile.userId),
+    const { data } = await this.db
+      .from('tiles')
+      .select(
+        'id, created_at, tile_item!inner(photo_url, caption, badge_color), author:users(id, username, name, photo_url)',
       )
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .slice(0, BULLETIN_BOARD_LIMIT)
-      .map((tile): BulletinItemDto | undefined => {
-        const record = itemRecords.find((r) => r.tileId === tile.id);
-        const author = userById.get(tile.userId);
-        if (!record || !author) return undefined;
-        return {
-          id: tile.id,
-          createdAt: tile.createdAt,
-          photoUrl: record.photoUrl,
-          caption: record.caption,
-          badgeColor: record.badgeColor,
-          author: {
-            id: author.id,
-            name: author.name,
-            photoUrl: author.photoUrl,
-          },
-        };
-      })
-      .filter((dto): dto is BulletinItemDto => dto !== undefined);
+      .eq('type', 'item')
+      .eq('archived', false)
+      .in('user_id', followeeIds)
+      .order('created_at', { ascending: false })
+      .limit(BULLETIN_BOARD_LIMIT)
+      .throwOnError()
+      .overrideTypes<
+        {
+          id: string;
+          created_at: string;
+          tile_item: TileItemRow;
+          author: AuthorRow;
+        }[],
+        { merge: false }
+      >();
+
+    return data.map((tile) => ({
+      id: tile.id,
+      createdAt: toIsoString(tile.created_at),
+      photoUrl: tile.tile_item.photo_url,
+      caption: tile.tile_item.caption,
+      badgeColor: tile.tile_item.badge_color,
+      author: toAuthorDto(tile.author),
+    }));
   }
 
-  private async getFolloweeIds(userId: string): Promise<Set<string>> {
-    const follows = await this.stores.follows.readAll();
-    return new Set(
-      follows
-        .filter((follow) => follow.followerId === userId)
-        .map((follow) => follow.followeeId),
-    );
+  private async createTile(args: Record<string, string>): Promise<TileRow> {
+    const { data } = await this.db
+      .rpc('create_tile', args)
+      .single<TileRow>()
+      .throwOnError();
+    return data;
+  }
+
+  private async findTile(tileId: string): Promise<TileRow | undefined> {
+    if (!isUuid(tileId)) return undefined;
+    const { data } = await this.db
+      .from('tiles')
+      .select(TILE_COLUMNS)
+      .eq('id', tileId)
+      .maybeSingle<TileRow>()
+      .throwOnError();
+    return data ?? undefined;
+  }
+
+  private async getFolloweeIds(userId: string): Promise<string[]> {
+    const { data } = await this.db
+      .from('follows')
+      .select('followee_id')
+      .eq('follower_id', userId)
+      .throwOnError()
+      .overrideTypes<{ followee_id: string }[], { merge: false }>();
+    return data.map((follow) => follow.followee_id);
   }
 
   private async ensureUserExists(userId: string): Promise<void> {
     const user = await this.usersService.findById(userId);
     if (!user) throw new NotFoundException('User not found');
-  }
-
-  private async archiveOldestIfAtLimit(userId: string): Promise<void> {
-    const tiles = await this.stores.tiles.readAll();
-    const active = tiles
-      .filter((tile) => tile.userId === userId && !tile.archived)
-      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-
-    if (active.length < MAX_ACTIVE_TILES) return;
-
-    const oldest = active[0];
-    await this.stores.tiles.update(
-      (record) => record.id === oldest.id,
-      (record): TileRecord => ({ ...record, archived: true }),
-    );
   }
 }

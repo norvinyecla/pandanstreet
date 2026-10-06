@@ -11,10 +11,12 @@ import { useTilesVersion } from '../tiles/TilesVersionContext.ts';
 import { useToast } from '../toast/toastContext.ts';
 
 export function ProfilePage() {
-  const { id } = useParams<{ id?: string }>();
+  const { username } = useParams<{ username?: string }>();
   const { currentUser } = useAuth();
-  const profileId = id ?? currentUser?.id;
-  const isOwnProfile = !id || id === currentUser?.id;
+  const isOwnProfile = !username || username === currentUser?.username;
+  const profilePath = isOwnProfile
+    ? currentUser && `/users/${currentUser.id}`
+    : `/users/by-username/${encodeURIComponent(username)}`;
   const tilesVersion = useTilesVersion();
   const showToast = useToast();
 
@@ -27,17 +29,23 @@ export function ProfilePage() {
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    if (!profileId) return;
+    if (!profilePath) return;
     let cancelled = false;
     setError(null);
 
-    Promise.all([
-      api.get<UserProfile>(`/users/${profileId}`),
-      api.get<Tile[]>(`/tiles/${profileId}`),
-      isOwnProfile
-        ? Promise.resolve([])
-        : api.get<FollowUser[]>(`/follows/${profileId}/followers`),
-    ])
+    // The profile is looked up by username, so its id (needed for tiles and
+    // followers) is only known once it has loaded.
+    api
+      .get<UserProfile>(profilePath)
+      .then((profileData) =>
+        Promise.all([
+          profileData,
+          api.get<Tile[]>(`/tiles/${profileData.id}`),
+          isOwnProfile
+            ? Promise.resolve([])
+            : api.get<FollowUser[]>(`/follows/${profileData.id}/followers`),
+        ]),
+      )
       .then(([profileData, tilesData, followers]) => {
         if (cancelled) return;
         setProfile(profileData);
@@ -57,7 +65,7 @@ export function ProfilePage() {
     return () => {
       cancelled = true;
     };
-  }, [profileId, isOwnProfile, currentUser?.id, tilesVersion, reloadKey]);
+  }, [profilePath, isOwnProfile, currentUser?.id, tilesVersion, reloadKey]);
 
   const handleRetry = () => {
     setError(null);
@@ -118,9 +126,12 @@ export function ProfilePage() {
         name={profile.name}
         size="lg"
       />
-      <h1 className="text-xl font-semibold text-base-content">
-        {profile.name}
-      </h1>
+      <div className="text-center">
+        <h1 className="text-xl font-semibold text-base-content">
+          {profile.name}
+        </h1>
+        <p className="text-sm text-base-content/70">@{profile.username}</p>
+      </div>
       {profile.bio && (
         <p className="max-w-xs text-center text-sm text-base-content/80">
           {profile.bio}

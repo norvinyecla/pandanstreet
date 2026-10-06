@@ -7,6 +7,7 @@ import { SignupPage } from './SignupPage.tsx';
 
 const profile = {
   id: 'u1',
+  username: 'ada lovelace',
   name: 'Ada Lovelace',
   photoUrl: '',
   followerCount: 0,

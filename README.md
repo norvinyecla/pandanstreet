@@ -6,7 +6,7 @@ A minimal, mobile-first social media app. Users log in, build a small profile, a
 
 - **Frontend:** ReactJS + TailwindCSS (light mode only, for now)
 - **Backend:** NestJS
-- **Data storage:** Local CSV file(s) (multiple files as needed, e.g. one per entity)
+- **Data storage:** Supabase (Postgres), run locally with the Supabase CLI; uploaded photos on local disk
 - **Target platform:** Mobile-first, optimized for portrait orientation
 
 ## Core Concepts
@@ -56,13 +56,15 @@ A minimal, mobile-first social media app. Users log in, build a small profile, a
 - **Followers** — profiles following the current user (read-only)
 - **Plaza** — 2–3 randomly-selected profiles the current user doesn't follow (whether or not they follow back) that posted a Text tile, or an Item tile badged green/yellow, in the last 24 hours; requires at least 2 qualifying profiles, otherwise shows an empty state
 
-## Data Model (CSV files, draft)
+## Data Model (Supabase tables)
 
-- `users.csv` — id, username, passwordHash, name, photoUrl, bio, createdAt
-- `follows.csv` — followerId, followeeId, createdAt
-- `tiles.csv` — id, userId, type (`text` | `item`), createdAt, archived (bool)
-- `tile_text.csv` — tileId, text
-- `tile_item.csv` — tileId, photoUrl, caption, badgeColor
+Defined in `backend/supabase/migrations/`:
+
+- `users` — id, username (unique), password_hash, name, photo_url, bio, created_at
+- `follows` — follower_id, followee_id, created_at (primary key on the pair; no self-follows)
+- `tiles` — id, user_id, type (`text` | `item`), created_at, archived (bool)
+- `tile_text` — tile_id, text
+- `tile_item` — tile_id, photo_url, caption, badge_color (`red` | `yellow` | `green`)
 
 ## UX Notes
 
@@ -77,10 +79,11 @@ A minimal, mobile-first social media app. Users log in, build a small profile, a
 ## Decisions
 
 - **Login:** session-based auth (no OAuth) with a separate sign-up step. Users sign up with a unique username, display name, and password, and log in with username + password. Passwords are hashed with Node's built-in `crypto.scrypt`.
-- **Archived tiles:** marked inactive/hidden, not deleted — kept in `tiles.csv` with `archived = true`.
-- **Photo storage:** uploaded photos are saved to local disk; the file path is referenced in the CSV (since CSVs can't hold binary data).
+- **Archived tiles:** marked inactive/hidden, not deleted — kept in `tiles` with `archived = true`.
+- **Photo storage:** uploaded photos are saved to local disk; the file path is stored in the database.
 - **Editing tiles:** only **Text** tiles can be edited after creation (text content can be updated in place). **Item** tiles are immutable once created — to change one, the user creates a new tile (which may archive the oldest).
 - **Deleting tiles:** owners can delete any of their own tiles (Text or Item) from their profile, after a confirmation prompt. Deleting archives the tile (`archived = true`) rather than removing the row, so it disappears from the profile and feeds.
+- **Database:** Supabase Postgres, accessed only by the backend with `@supabase/supabase-js` and the service-role key. Row Level Security is on with no policies, so the public keys can't read anything. Replaced the Phase 1 CSV files.
 - No dark mode for the prototype.
 
 ## Status

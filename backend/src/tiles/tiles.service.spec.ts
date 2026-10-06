@@ -1,35 +1,37 @@
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { createCsvStores, type CsvStores } from '../common/csv/csv-stores.js';
+import {
+  createTestSupabase,
+  resetDatabase,
+} from '../common/database/test-database.js';
 import { FollowsService } from '../follows/follows.service.js';
 import { newUser } from '../users/test-fixtures.js';
 import { UsersService } from '../users/users.service.js';
 import { TilesService } from './tiles.service.js';
 
 describe('TilesService', () => {
-  let dir: string;
-  let stores: CsvStores;
+  const db = createTestSupabase();
   let usersService: UsersService;
   let followsService: FollowsService;
   let service: TilesService;
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'tiles-service-'));
-    stores = createCsvStores(dir);
-    usersService = new UsersService(stores);
-    followsService = new FollowsService(stores, usersService);
-    service = new TilesService(stores, usersService);
+    await resetDatabase(db);
+    usersService = new UsersService(db);
+    followsService = new FollowsService(db, usersService);
+    service = new TilesService(db, usersService);
   });
 
-  afterEach(async () => {
-    await rm(dir, { recursive: true, force: true });
-  });
+  async function tileRows() {
+    const { data } = await db
+      .from('tiles')
+      .select('id, user_id, type, archived')
+      .throwOnError();
+    return data;
+  }
 
   it('createText creates a text tile', async () => {
     const alice = await usersService.create(newUser('Alice'));
@@ -41,10 +43,10 @@ describe('TilesService', () => {
       text: 'Hello world',
       userId: alice.id,
     });
-    const rows = await stores.tiles.readAll();
+    const rows = await tileRows();
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
-      userId: alice.id,
+      user_id: alice.id,
       type: 'text',
       archived: false,
     });
@@ -72,8 +74,11 @@ describe('TilesService', () => {
       caption: 'A nice photo',
       badgeColor: 'green',
     });
-    const rows = await stores.tileItem.readAll();
-    expect(rows).toHaveLength(1);
+    const { data: rows } = await db
+      .from('tile_item')
+      .select('tile_id')
+      .throwOnError();
+    expect(rows).toEqual([{ tile_id: tile.id }]);
   });
 
   it('auto-archives the oldest active tile when creating a 4th', async () => {
@@ -84,7 +89,7 @@ describe('TilesService', () => {
 
     await service.createText(alice.id, 'fourth');
 
-    const tiles = await stores.tiles.readAll();
+    const tiles = await tileRows();
     const archived = tiles.find((t) => t.id === first.id);
     expect(archived?.archived).toBe(true);
 
@@ -95,6 +100,19 @@ describe('TilesService', () => {
       'third',
       'second',
     ]);
+  });
+
+  it('keeps at most 3 active tiles when tiles are created concurrently', async () => {
+    const alice = await usersService.create(newUser('Alice'));
+
+    await Promise.all(
+      ['one', 'two', 'three', 'four', 'five'].map((text) =>
+        service.createText(alice.id, text),
+      ),
+    );
+
+    expect(await service.getActiveTiles(alice.id)).toHaveLength(3);
+    expect(await tileRows()).toHaveLength(5);
   });
 
   it('getActiveTiles returns tiles most recently created first, excluding archived', async () => {
@@ -122,8 +140,11 @@ describe('TilesService', () => {
     const updated = await service.editText(tile.id, alice.id, 'updated');
 
     expect(updated).toMatchObject({ type: 'text', text: 'updated' });
-    const rows = await stores.tileText.readAll();
-    expect(rows[0].text).toBe('updated');
+    const { data: rows } = await db
+      .from('tile_text')
+      .select('text')
+      .throwOnError();
+    expect(rows).toEqual([{ text: 'updated' }]);
   });
 
   it('editText throws BadRequestException for an item tile', async () => {
@@ -172,7 +193,7 @@ describe('TilesService', () => {
     await service.archive(item.id, alice.id);
 
     expect(await service.getActiveTiles(alice.id)).toEqual([]);
-    const rows = await stores.tiles.readAll();
+    const rows = await tileRows();
     expect(rows).toHaveLength(2);
     expect(rows.every((row) => row.archived)).toBe(true);
   });
