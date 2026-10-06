@@ -25,12 +25,36 @@ source /etc/pandanstreet/stack.env
 
 "$deploy_dir/bootstrap.sh" "$release_dir"
 
+# Prints one SSM parameter, failing if it's missing or empty. Always capture
+# it with $(...): the snap-packaged AWS CLI writes nothing (and still exits 0)
+# when its output is redirected straight to a file.
 param() {
-  aws ssm get-parameter --region "$AWS_REGION" --with-decryption \
-    --name "$CONFIG_PATH/$1" --query Parameter.Value --output text
+  local value
+  value=$(aws ssm get-parameter --region "$AWS_REGION" --with-decryption \
+    --name "$CONFIG_PATH/$1" --query Parameter.Value --output text)
+  if [ -z "$value" ]; then
+    echo "!!! SSM parameter $CONFIG_PATH/$1 is empty" >&2
+    return 1
+  fi
+  printf '%s\n' "$value"
 }
 
 echo '--- Writing config'
+# Plain assignments, so a failed read stops the script (set -e).
+supabase_url=$(param SUPABASE_URL)
+supabase_key=$(param SUPABASE_SERVICE_ROLE_KEY)
+session_secret=$(param SESSION_SECRET)
+origin_cert=$(param ORIGIN_CERT)
+origin_key=$(param ORIGIN_KEY)
+
+# The origin certificate and key must parse and belong together.
+cert_pub=$(printf '%s\n' "$origin_cert" | openssl x509 -noout -pubkey)
+key_pub=$(printf '%s\n' "$origin_key" | openssl pkey -pubout)
+if [ "$cert_pub" != "$key_pub" ]; then
+  echo '!!! ORIGIN_CERT and ORIGIN_KEY do not match' >&2
+  exit 1
+fi
+
 umask 077
 {
   echo 'NODE_ENV=production'
@@ -39,14 +63,15 @@ umask 077
   echo "AWS_REGION=$AWS_REGION"
   echo "S3_BUCKET=$S3_BUCKET"
   echo "PHOTOS_BASE_URL=$PHOTOS_BASE_URL"
-  echo "SUPABASE_URL=$(param SUPABASE_URL)"
-  echo "SUPABASE_SERVICE_ROLE_KEY=$(param SUPABASE_SERVICE_ROLE_KEY)"
-  echo "SESSION_SECRET=$(param SESSION_SECRET)"
+  echo "SUPABASE_URL=$supabase_url"
+  echo "SUPABASE_SERVICE_ROLE_KEY=$supabase_key"
+  echo "SESSION_SECRET=$session_secret"
 } > /etc/pandanstreet/backend.env.new
 mv /etc/pandanstreet/backend.env.new /etc/pandanstreet/backend.env
-param ORIGIN_CERT > /etc/pandanstreet/tls/origin.pem
-param ORIGIN_KEY > /etc/pandanstreet/tls/origin.key
+printf '%s\n' "$origin_cert" > /etc/pandanstreet/tls/origin.pem
+printf '%s\n' "$origin_key" > /etc/pandanstreet/tls/origin.key
 umask 022
+unset supabase_key session_secret origin_key
 
 echo '--- Installing backend dependencies'
 (cd "$release_dir" && COREPACK_ENABLE_DOWNLOAD_PROMPT=0 yarn workspaces focus backend --production)
