@@ -10,6 +10,7 @@ Monorepo layout:
 /frontend   — ReactJS + TailwindCSS
 /backend    — NestJS
 /backend/supabase — Supabase CLI config and SQL migrations
+/deploy     — production: CloudFormation template, server scripts, nginx and systemd config
 ```
 
 ## Tooling
@@ -31,6 +32,7 @@ Monorepo layout:
 - **Photo storage:** uploading photos needs an S3 bucket even in development (see the S3 setup in [README.md](README.md)). Set `AWS_REGION`, `S3_BUCKET` and `PHOTOS_BASE_URL` in `backend/.env`; the backend won't start without them. AWS credentials come from the SDK's default chain (e.g. `AWS_PROFILE` in your shell) — never put them in `.env` files or code. Tests use an in-memory fake (`FakeS3`), so they need no AWS access.
 - **Backend dev server:** `yarn start:dev` in `/backend`, runs on `http://localhost:3001`
 - Frontend calls the backend API at `http://localhost:3001` in development. CORS must be enabled on the backend for `http://localhost:3000`.
+- **Production:** every push to `main` deploys to `pandanstreet.trade` through `.github/workflows/deploy.yml`. That includes applying new migrations to the hosted database, so migrations must work with the code that's still running (additive changes first). See "Deployment (AWS EC2)" in [README.md](README.md). Never change production AWS resources, SSM parameters or Cloudflare settings without the user's explicit go-ahead.
 - Environment-specific config (API URL, port, upload size limits, etc.) belongs in `.env` files (`frontend/.env`, `backend/.env`), not hardcoded. Provide `.env.example` files for both packages.
 
 ## Verification

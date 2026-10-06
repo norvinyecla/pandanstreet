@@ -1,8 +1,12 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
-import { createSessionMiddleware } from '../src/common/auth/session-middleware.js';
+import {
+  createSessionMiddleware,
+  useSessions,
+} from '../src/common/auth/session-middleware.js';
 import { SUPABASE_CLIENT } from '../src/common/database/supabase.module.js';
 import {
   createTestSupabase,
@@ -320,5 +324,53 @@ describe('Users & Auth (e2e)', () => {
       .expect(200);
 
     expect(res.body.bio).toBe('Mathematician.');
+  });
+
+  describe('in production behind the HTTPS proxy', () => {
+    let prodApp: NestExpressApplication;
+
+    beforeEach(async () => {
+      const moduleFixture: TestingModule = await Test.createTestingModule({
+        imports: [AppModule],
+      })
+        .overrideProvider(PhotoStorage)
+        .useValue(storage)
+        .compile();
+
+      prodApp = moduleFixture.createNestApplication<NestExpressApplication>();
+      prodApp.useGlobalPipes(
+        new ValidationPipe({ whitelist: true, transform: true }),
+      );
+      useSessions(prodApp, prodApp.get(SUPABASE_CLIENT), {
+        secret: 'test-secret',
+        production: true,
+      });
+      await prodApp.init();
+    });
+
+    afterEach(async () => {
+      await prodApp.close();
+    });
+
+    it('sends a Secure session cookie when the proxy forwarded HTTPS', async () => {
+      const res = await request(prodApp.getHttpServer())
+        .post('/auth/signup')
+        .set('X-Forwarded-Proto', 'https')
+        .send(signupBody('Secure'))
+        .expect(201);
+
+      const cookie = res.get('Set-Cookie')?.join(';') ?? '';
+      expect(cookie).toMatch(/connect\.sid=/);
+      expect(cookie).toMatch(/; Secure/);
+    });
+
+    it('never sends the session cookie over plain HTTP', async () => {
+      const res = await request(prodApp.getHttpServer())
+        .post('/auth/signup')
+        .send(signupBody('Plain'))
+        .expect(201);
+
+      expect(res.get('Set-Cookie')).toBeUndefined();
+    });
   });
 });

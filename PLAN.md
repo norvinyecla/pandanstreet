@@ -267,21 +267,62 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
 - **Manual check** against the dev bucket: upload a profile photo and an Item tile at mobile width, confirm the images load from the S3 URL, replace the profile photo and confirm the old object is gone, and check a too-large or wrong-type file is still rejected
 - **Docs:** AGENTS.md (repo structure drops `/backend/data`; the Data and File Uploads sections say photos go to S3; Running the App says to set the S3 settings and AWS credentials) and README (Tech Stack, bucket setup)
 
-## Phase 25 — Cloud Deployment on AWS EC2 (outline)
+## Phase 25 — Cloud Deployment on AWS EC2
 
-To be planned in detail after Phase 24 lands. Outline:
-
-- One EC2 instance running the NestJS backend (pinned Node LTS, managed by `systemd` or `pm2`), with nginx in front for HTTPS (e.g. Let's Encrypt)
-- The frontend's production build (`yarn build`) served as static files, with `VITE_API_URL` pointing at the deployed API
-- The instance's IAM role grants the Phase 24 S3 permissions on a prod bucket, so no AWS keys live on the server
-- Production `.env` on the server: a strong `SESSION_SECRET`, `FRONTEND_ORIGIN`, the prod Supabase URL and key, and the S3 settings
-- Session cookies set to `secure` behind HTTPS (trust the proxy)
-- **Open items to confirm before starting:**
-  - Database: a hosted Supabase project, or self-hosted Supabase on the instance or elsewhere
-  - Frontend hosting: nginx on the same instance, or S3 + CloudFront
-  - Domain: one domain with the API under `/api` (same-site cookies, no CORS), or separate frontend and API subdomains
-  - Deploys: manual (SSH + script) or from GitHub Actions
-  - Whether to describe the AWS resources as code (e.g. CloudFormation or Terraform) or set them up by hand with a documented checklist
+- **Goal:** run the app in production at `https://pandanstreet.trade` (frontend) and `https://api.pandanstreet.trade` (backend), deployed automatically when `main` changes
+- **Decisions (confirmed with the user):**
+  - Database: a **hosted Supabase** project (Sydney region, to sit next to the instance); nothing database-related runs on EC2
+  - **One EC2 `t4g.micro`** (Arm, 1GB) in the project's AWS Region (`ap-southeast-2`; confirm in AWS Settings), running the NestJS backend under `systemd` and **nginx** in front, which serves the frontend's static build and proxies the API
+  - Domain: `pandanstreet.trade` serves the app, `api.pandanstreet.trade` the API. They're the same _site_, so the `SameSite=Lax` session cookie still works; the backend allows CORS from `https://pandanstreet.trade`. `www.` is not set up
+  - **Cloudflare** (where the domain's DNS already lives) proxies both names (orange cloud): it serves HTTPS to visitors and hides the instance's IP. Cloudflare reaches the instance over HTTPS with SSL mode **Full (strict)**, using a free **Cloudflare Origin Certificate** on nginx (15-year validity, so no certbot and no renewals)
+  - AWS resources in one **CloudFormation** template, created and updated by hand with the AWS CLI. GitHub Actions only ships code, so its AWS identity needs no IAM or EC2 rights
+  - **Deploys from GitHub Actions** on every push to `main` (and by hand with "Run workflow"). The 1GB instance doesn't build anything: Actions builds, then tells the instance to install the release
+- **AWS resources** (`deploy/cloudformation.yaml`):
+  - **Prod photos bucket**: the Phase 24 manual setup as code: owner-enforced (no ACLs), SSE-S3 encryption, public `s3:GetObject` on `photos/*` only, HTTPS-only requests, kept if the stack is deleted. No versioning, since replaced photos are deleted on purpose
+  - **Releases bucket** (private, all public access blocked): build archives from Actions, expired after 30 days
+  - **EC2 instance**: Ubuntu 24.04 arm64 (the AMI ID is a stack parameter, so a stack update never swaps the instance by surprise), IMDSv2 required, encrypted gp3 root volume, default VPC, with an **Elastic IP**
+  - **Security group**: only port 443, and only from Cloudflare's IP ranges (kept in a managed prefix list in the template), so nobody can skip Cloudflare and reach the instance directly. No port 80 (Cloudflare redirects HTTP to HTTPS) and no SSH port: shell access is through SSM Session Manager
+  - **Instance role**: SSM Session Manager/Run Command; `s3:PutObject`/`s3:DeleteObject` on the photos bucket's `photos/*`; read the releases bucket; read SSM parameters under `/pandanstreet/prod/`
+  - A **deploy IAM user** for GitHub Actions. It can upload to the releases bucket and run `AWS-RunShellScript` on this one instance through SSM, nothing else. Its access key is created with the CLI (never in the template or its outputs) and piped straight into GitHub. (GitHub OIDC was the first choice, but the AWS project's Free plan service control policy denies `iam:*Provider*`; the user chose to stay on the Free plan and use a key.)
+  - Outputs: the Elastic IP, instance ID, deploy role ARN, bucket names, `PHOTOS_BASE_URL`
+- **Config and secrets** (never in the repo, the template or GitHub logs):
+  - SSM Parameter Store, created by hand: `/pandanstreet/prod/SUPABASE_URL` (String), `/pandanstreet/prod/SUPABASE_SERVICE_ROLE_KEY`, `/pandanstreet/prod/SESSION_SECRET`, `/pandanstreet/prod/ORIGIN_CERT` and `/pandanstreet/prod/ORIGIN_KEY` (SecureString; the last two are the Cloudflare Origin Certificate and its private key)
+  - Stack values (`AWS_REGION`, `S3_BUCKET`, `PHOTOS_BASE_URL`, `FRONTEND_ORIGIN`) are written on the instance at first boot
+  - On each release the instance renders `/etc/pandanstreet/backend.env` (root-owned, readable only by the app user) from both, plus `NODE_ENV=production` and `PORT=3001`
+  - GitHub: a `production` environment limited to the `main` branch, holding the secrets `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `SUPABASE_DB_URL` (so no other branch's workflow can read them); repository variables `AWS_REGION`, `STACK_NAME`, `VITE_API_URL` (the workflow reads the instance ID and releases bucket from the stack's outputs, so replacing the instance needs no GitHub change); `SUPABASE_DB_URL` is the hosted project's session-pooler connection string, for migrations
+- **Instance setup:** the instance's user data only writes the stack values to `/etc/pandanstreet/stack.env` and installs the AWS CLI. Everything else is in `deploy/bootstrap.sh`, which `release.sh` runs at the start of every release, so the server setup ships and is versioned with the code. Each step is skipped when already done. It does the following: install nginx, Node 22 (matching `.nvmrc`) with Corepack, and the AWS CLI; add a 1GB swap file; create an unprivileged `pandanstreet` user; install the `pandanstreet-backend` systemd unit and the nginx site
+- **Deploy workflow** (`.github/workflows/deploy.yml`, one run at a time):
+  1. Install dependencies and build the backend and frontend (`VITE_API_URL=https://api.pandanstreet.trade`)
+  2. Apply new migrations to the hosted database (`supabase db push --db-url "$SUPABASE_DB_URL"`) before the new code starts, so migrations must stay compatible with the code that's still running (they already are: additive only)
+  3. Package a release archive (backend `dist`, frontend `dist`, `package.json` files, `yarn.lock`, `.yarnrc.yml`, `.nvmrc`, `deploy/`) and upload it to the releases bucket as `<commit sha>.tar.gz`
+  4. Sign in as the deploy user and run `deploy/release.sh <sha>` on the instance through SSM Run Command, waiting for it and failing the job if it fails
+- **Release script** (`deploy/release.sh`, on the instance): the SSM command unpacks the archive into `/opt/pandanstreet/releases/<timestamp>-<sha>`, then the script runs bootstrap, renders `backend.env` and writes the origin certificate and key (readable by root only), installs backend production dependencies only (`yarn workspaces focus backend --production`), switches the `current` symlink (nginx serves the frontend straight from `current`, so both apps switch together), installs the nginx site, restarts the backend, and check it answers on `127.0.0.1:3001`. If the check fails, switch back to the previous release and fail. Keep the last 3 releases
+- **nginx:**
+  - HTTPS only (port 443) with the origin certificate
+  - `pandanstreet.trade`: serves the frontend; unknown paths fall back to `index.html` (client-side routes like `/u/<username>`); hashed `/assets/` get a long cache
+  - `api.pandanstreet.trade`: proxies to `127.0.0.1:3001` with `X-Forwarded-For`/`X-Forwarded-Proto`; `client_max_body_size 6m` (the backend still enforces the 5MB photo limit)
+  - Any other host name (e.g. the bare IP) is refused
+- **Cloudflare setup (manual, in the dashboard):** proxied A records for `pandanstreet.trade` and `api` pointing at the Elastic IP; SSL/TLS mode Full (strict); "Always Use HTTPS" on; an Origin Certificate for `pandanstreet.trade` and `*.pandanstreet.trade`, saved into the two SSM parameters. Cloudflare's default caching already skips HTML and API responses and caches the hashed assets
+- **Backend changes** (the only app code change):
+  - With `NODE_ENV=production`: trust the first proxy (`app.set('trust proxy', 1)`) and set the session cookie to `secure`
+  - In production, startup fails with a clear message if `SESSION_SECRET` is missing or is still the dev default
+  - The cookie stays host-only on `api.pandanstreet.trade`; CORS still comes from `FRONTEND_ORIGIN`
+  - The frontend needs no change: `VITE_API_URL` is set at build time
+- **Tests:**
+  - Session settings: development keeps today's behavior; production requires a real `SESSION_SECRET` (missing or default → error) and sets a `secure` cookie
+  - E2E: with production settings, a login through a proxy (`X-Forwarded-Proto: https`) returns a `Secure` session cookie
+  - The infrastructure isn't covered by the test suite. Instead, a new `deploy` job in `ci.yml` checks it on every PR: `cfn-lint` on the template (installed with `pip` in the job; not a project dependency) `shellcheck` (already on GitHub's runners) on the `deploy/` scripts, and `nginx -t` on the site config in the `nginx:1.24` image (Ubuntu 24.04's version) with a throwaway certificate
+- **Manual check** after the first deploy, at mobile width on `https://pandanstreet.trade`:
+  - sign up, log out and log in, and reload to confirm the session holds
+  - upload a profile photo and an Item tile, and confirm they load from the prod bucket
+  - open a `/u/<username>` URL directly, and confirm the cookie is `Secure`
+  - push a trivial change to `main` and watch it deploy
+- **Docs:**
+  - README: a new "Deployment (AWS EC2)" section with the one-time checklist: confirm the Region, create the Supabase project, find the AMI ID, create the stack, set up Cloudflare (DNS, SSL mode, origin certificate), create the SSM parameters, set the GitHub variables and secret, and do the first deploy. It also explains how to update the Cloudflare IP ranges in the template if Cloudflare changes them. It also covers updating the stack, rough monthly cost, and how to tear it down
+  - README Tech Stack mentions the deployment
+  - AGENTS.md: repo structure adds `/deploy`; a note that merging to `main` deploys to production (migrations included, so they must stay compatible with the running code)
+  - `backend/.env.example`: a note on what `NODE_ENV=production` changes
+- **Not in this phase:** `www.` redirect, Cloudflare Authenticated Origin Pulls, a staging environment, monitoring/alerting, multiple instances
 
 ## Out of Scope (for this prototype)
 
