@@ -1,6 +1,3 @@
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
@@ -11,19 +8,21 @@ import {
   createTestSupabase,
   resetDatabase,
 } from '../src/common/database/test-database.js';
+import { createFakePhotoStorage } from '../src/common/uploads/fake-s3.js';
+import { PhotoStorage } from '../src/common/uploads/photo-storage.js';
 
 describe('Follows (e2e)', () => {
   let app: INestApplication;
-  let dir: string;
 
   beforeEach(async () => {
     await resetDatabase(createTestSupabase());
-    dir = await mkdtemp(join(tmpdir(), 'follows-e2e-'));
-    process.env.DATA_DIR = dir;
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(PhotoStorage)
+      .useValue(createFakePhotoStorage().storage)
+      .compile();
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(
@@ -35,8 +34,6 @@ describe('Follows (e2e)', () => {
 
   afterEach(async () => {
     await app.close();
-    delete process.env.DATA_DIR;
-    await rm(dir, { recursive: true, force: true });
   });
 
   async function loginAs(name: string) {

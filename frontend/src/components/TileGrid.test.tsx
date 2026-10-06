@@ -26,7 +26,7 @@ describe('TileGrid', () => {
         userId: 'u1',
         type: 'item',
         createdAt: '2026-01-02',
-        photoUrl: '/uploads/photo.png',
+        photoUrl: 'https://photos.example.test/photos/photo.png',
         caption: 'A nice photo',
         badgeColor: 'green',
       },
@@ -39,7 +39,7 @@ describe('TileGrid', () => {
     expect(screen.getByText("G'day!")).toBeInTheDocument();
     expect(screen.getByAltText('A nice photo')).toHaveAttribute(
       'src',
-      'http://localhost:3001/uploads/photo.png',
+      'https://photos.example.test/photos/photo.png',
     );
   });
 
@@ -57,7 +57,7 @@ describe('TileGrid', () => {
         userId: 'u1',
         type: 'item',
         createdAt: '2026-01-02',
-        photoUrl: '/uploads/photo.png',
+        photoUrl: 'https://photos.example.test/photos/photo.png',
         caption: 'A nice photo',
         badgeColor: 'green',
       },
@@ -101,7 +101,7 @@ describe('TileGrid', () => {
       userId: 'u1',
       type: 'item',
       createdAt: '2026-01-02',
-      photoUrl: '/uploads/photo.png',
+      photoUrl: 'https://photos.example.test/photos/photo.png',
       caption: 'A nice photo',
       badgeColor: 'green',
     },

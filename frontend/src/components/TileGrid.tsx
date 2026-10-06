@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ApiError, resolveAssetUrl } from '../api/client.ts';
+import { ApiError } from '../api/client.ts';
 import type { BadgeColor, Tile } from '../api/types.ts';
 
 export const BADGE_MESSAGES: Record<BadgeColor, string> = {
@@ -100,7 +100,7 @@ function TileCard({
       ) : (
         <>
           <img
-            src={resolveAssetUrl(tile.photoUrl)}
+            src={tile.photoUrl}
             alt={tile.caption}
             className="aspect-square w-full rounded-md bg-base-200 object-cover"
           />

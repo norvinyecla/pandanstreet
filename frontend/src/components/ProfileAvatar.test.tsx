@@ -4,11 +4,17 @@ import { ProfileAvatar } from './ProfileAvatar.tsx';
 
 describe('ProfileAvatar', () => {
   it('renders the uploaded photo with alt text', () => {
-    render(<ProfileAvatar src="/uploads/ada.png" name="Ada" size="lg" />);
+    render(
+      <ProfileAvatar
+        src="https://photos.example.test/photos/ada.png"
+        name="Ada"
+        size="lg"
+      />,
+    );
 
     expect(screen.getByAltText("Ada's profile photo")).toHaveAttribute(
       'src',
-      '/uploads/ada.png',
+      'https://photos.example.test/photos/ada.png',
     );
     expect(screen.queryByTestId('default-avatar')).not.toBeInTheDocument();
   });

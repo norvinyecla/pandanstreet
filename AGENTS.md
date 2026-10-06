@@ -9,7 +9,6 @@ Monorepo layout:
 ```
 /frontend   — ReactJS + TailwindCSS
 /backend    — NestJS
-/backend/data — uploaded photos
 /backend/supabase — Supabase CLI config and SQL migrations
 ```
 
@@ -20,7 +19,7 @@ Monorepo layout:
 - **Language:** TypeScript everywhere — both `/frontend` and `/backend`. No plain `.js` files.
 - **Frontend:** ReactJS, TailwindCSS + DaisyUI (emerald theme, light mode only for now)
 - **Backend:** NestJS
-- **Data:** Supabase (Postgres), run locally with the Supabase CLI (a `supabase` devDependency; needs Docker). Schema changes go in a new file under `backend/supabase/migrations/` — never edit a migration that has already been merged. Uploaded photos are saved to disk under `backend/data/uploads/`, referenced by path from the database.
+- **Data:** Supabase (Postgres), run locally with the Supabase CLI (a `supabase` devDependency; needs Docker). Schema changes go in a new file under `backend/supabase/migrations/` — never edit a migration that has already been merged. Uploaded photos are stored in AWS S3 (`@aws-sdk/client-s3`) under `photos/`, through the `PhotoStorage` provider; the database stores each photo's public URL. The backend keeps no files on local disk.
 - **Formatting:** Prettier, configured in the root `.prettierrc` (2-space indent, semicolons, single quotes, trailing commas). Run `yarn format` at the repo root before committing; CI fails PRs that don't pass `yarn format:check`.
 
 ## Running the App
@@ -29,6 +28,7 @@ Monorepo layout:
 - **Frontend dev server:** `yarn dev` in `/frontend`, runs on `http://localhost:3000`
 - **Database:** `yarn db:start` in `/backend` starts local Supabase (API on `http://127.0.0.1:54321`, Studio on `http://127.0.0.1:54323`). Copy the API URL and service-role key from `yarn db:status` into `backend/.env`. `yarn db:reset` re-applies the migrations to an empty database.
 - **Test database:** backend tests use a separate local Supabase stack in `backend/test-db/` (API on `http://127.0.0.1:54421`), so they never wipe the dev data. Start it with `yarn db:test:start` in `/backend` and copy the API URL and service-role key from `yarn db:test:status` into `backend/.env.test`. It shares the migrations in `backend/supabase/migrations/` through a symlink, so don't add migrations under `backend/test-db/`. After adding a migration, `yarn db:test:reset` applies it to the test stack.
+- **Photo storage:** uploading photos needs an S3 bucket even in development (see the S3 setup in [README.md](README.md)). Set `AWS_REGION`, `S3_BUCKET` and `PHOTOS_BASE_URL` in `backend/.env`; the backend won't start without them. AWS credentials come from the SDK's default chain (e.g. `AWS_PROFILE` in your shell) — never put them in `.env` files or code. Tests use an in-memory fake (`FakeS3`), so they need no AWS access.
 - **Backend dev server:** `yarn start:dev` in `/backend`, runs on `http://localhost:3001`
 - Frontend calls the backend API at `http://localhost:3001` in development. CORS must be enabled on the backend for `http://localhost:3000`.
 - Environment-specific config (API URL, port, upload size limits, etc.) belongs in `.env` files (`frontend/.env`, `backend/.env`), not hardcoded. Provide `.env.example` files for both packages.
@@ -72,6 +72,7 @@ Follow the schema in [README.md](README.md) (`users`, `follows`, `tiles`, `tile_
 - Max file size: **5MB**
 - Allowed types: **jpg, png, webp**
 - Enforce both limits server-side (not just via the HTML file input), and return a clear validation error when violated.
+- Check the limits before uploading to S3. If saving to the database then fails, delete the object that was just uploaded; when a profile photo is replaced, delete the old object. Photos of archived tiles are kept.
 
 ## Accessibility
 
@@ -141,6 +142,8 @@ Where this guidance conflicts with the project's own instructions, the project's
 - help_level (required): LOW, MEDIUM, or HIGH. While a user is building, you MUST ask the user: "How much guidance would you like from me? Low (I only flag security risks), medium (I ask a couple of clarifying questions if something seems off), or high (I explain what I'm doing, suggest alternatives, and flag best practices)."
 
 You CAN update this rule file to save a user's help_level.
+
+Saved help_level: **MEDIUM**
 
 Constraints for each level:
 

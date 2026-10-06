@@ -13,7 +13,3 @@ build/
 .env
 .env.local
 .env.test
-
-# uploaded photos are runtime data, not source
-backend/data/uploads/*
-!backend/data/uploads/.gitkeep

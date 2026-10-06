@@ -43,7 +43,7 @@ describe('ShoutoutsPage', () => {
                 id: 'u3',
                 username: 'linus',
                 name: 'Linus',
-                photoUrl: '/uploads/l.png',
+                photoUrl: 'https://photos.example.test/photos/l.png',
               },
             },
           ]),
@@ -63,7 +63,7 @@ describe('ShoutoutsPage', () => {
     );
     expect(screen.getByAltText("Linus's profile photo")).toHaveAttribute(
       'src',
-      'http://localhost:3001/uploads/l.png',
+      'https://photos.example.test/photos/l.png',
     );
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
       'http://localhost:3001/tiles/feed/shoutouts',

@@ -1,4 +1,3 @@
-import { join } from 'node:path';
 import {
   BadRequestException,
   Body,
@@ -18,7 +17,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { CurrentUserId } from '../common/auth/current-user-id.decorator.js';
 import { SessionAuthGuard } from '../common/auth/session-auth.guard.js';
-import { deletePhoto, savePhoto } from '../common/uploads/photo-files.js';
+import { PhotoStorage } from '../common/uploads/photo-storage.js';
 import { resolveUploadLimits } from '../users/upload.config.js';
 import { CreateItemTileDto } from './dto/create-item-tile.dto.js';
 import { CreateTextTileDto } from './dto/create-text-tile.dto.js';
@@ -29,17 +28,14 @@ import { TilesService } from './tiles.service.js';
 
 @Controller('tiles')
 export class TilesController {
-  private readonly uploadDir: string;
   private readonly maxBytes: number;
   private readonly allowedTypes: Record<string, string>;
 
   constructor(
     private readonly tilesService: TilesService,
+    private readonly photoStorage: PhotoStorage,
     config: ConfigService,
   ) {
-    const dataDir =
-      config.get<string>('DATA_DIR') ?? join(process.cwd(), 'data');
-    this.uploadDir = join(dataDir, 'uploads');
     ({ maxBytes: this.maxBytes, allowedTypes: this.allowedTypes } =
       resolveUploadLimits(config));
   }
@@ -93,7 +89,11 @@ export class TilesController {
       throw new BadRequestException('Photo must be one of: jpg, png, webp');
     }
 
-    const photoUrl = await savePhoto(this.uploadDir, file.buffer, extension);
+    const photoUrl = await this.photoStorage.save(
+      file.buffer,
+      extension,
+      file.mimetype,
+    );
     try {
       return await this.tilesService.createItem(
         userId,
@@ -102,7 +102,7 @@ export class TilesController {
         dto.badgeColor,
       );
     } catch (err) {
-      await deletePhoto(this.uploadDir, photoUrl);
+      await this.photoStorage.delete(photoUrl);
       throw err;
     }
   }
