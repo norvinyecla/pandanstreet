@@ -83,7 +83,7 @@ Defined in `backend/supabase/migrations/`:
 - **Photo storage:** uploaded photos are saved to local disk; the file path is stored in the database.
 - **Editing tiles:** only **Text** tiles can be edited after creation (text content can be updated in place). **Item** tiles are immutable once created — to change one, the user creates a new tile (which may archive the oldest).
 - **Deleting tiles:** owners can delete any of their own tiles (Text or Item) from their profile, after a confirmation prompt. Deleting archives the tile (`archived = true`) rather than removing the row, so it disappears from the profile and feeds.
-- **Database:** Supabase Postgres, accessed only by the backend with `@supabase/supabase-js` and the service-role key. Row Level Security is on with no policies, so the public keys can't read anything. Replaced the Phase 1 CSV files.
+- **Database:** Supabase Postgres, accessed only by the backend with `@supabase/supabase-js` and the service-role key. Row Level Security is on with no policies, so the public keys can't read anything. Replaced the Phase 1 CSV files. Backend tests run against a separate local test stack (`backend/test-db/`), so they never wipe the dev data.
 - No dark mode for the prototype.
 
 ## Status

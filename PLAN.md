@@ -203,6 +203,19 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
 - Manual check at mobile width: every page (login, sign-up, profile, edit profile, tile create/edit, Shout-outs, Bulletin Board, overlay, Following, Followers, Plaza), including loading, error and empty states
 - Docs: AGENTS.md tooling line becomes "ReactJS, TailwindCSS + DaisyUI (emerald theme, light mode only)"
 
+## Phase 22 — Separate Test Database
+
+- **Backend only:** tests run against their own local Supabase stack, so `yarn test` / `yarn test:e2e` no longer wipe the dev database
+- Second Supabase CLI project in `backend/test-db/` with its own `project_id` (`pandanstreet-test`) and ports (API `54421`, DB `54422`); its `supabase/migrations` is a symlink to `backend/supabase/migrations`, so both stacks always share one schema. Studio is disabled; auth stays on because `supabase status` only prints the service-role key when it runs
+- Scripts in `/backend`: `yarn db:test:start` / `db:test:stop` / `db:test:status` / `db:test:reset`
+- Tests read `backend/.env.test` (with a tracked `.env.test.example`) instead of `backend/.env`; variables already set in the environment (e.g. CI) still take precedence
+- A Vitest global setup fails the run with a clear message, before any test runs, when:
+  - `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` aren't set (copy them from `yarn db:test:status`)
+  - the test stack isn't reachable (run `yarn db:test:start`)
+  - `SUPABASE_URL` is the same as the dev URL in `backend/.env`
+- CI starts the test stack with `yarn db:test:start` instead of the dev one
+- Docs: AGENTS.md (Running the App, Verification) and README note the test database
+
 ## Out of Scope (for this prototype)
 
 - Dark mode

@@ -28,6 +28,7 @@ Monorepo layout:
 - **Node version:** run `nvm use` at the repo root before starting either dev server, to pick up the pinned version from `.nvmrc`. A newer Node (e.g. 23.x) can break `nest start --watch` with an `ERR_REQUIRE_CYCLE_MODULE` error.
 - **Frontend dev server:** `yarn dev` in `/frontend`, runs on `http://localhost:3000`
 - **Database:** `yarn db:start` in `/backend` starts local Supabase (API on `http://127.0.0.1:54321`, Studio on `http://127.0.0.1:54323`). Copy the API URL and service-role key from `yarn db:status` into `backend/.env`. `yarn db:reset` re-applies the migrations to an empty database.
+- **Test database:** backend tests use a separate local Supabase stack in `backend/test-db/` (API on `http://127.0.0.1:54421`), so they never wipe the dev data. Start it with `yarn db:test:start` in `/backend` and copy the API URL and service-role key from `yarn db:test:status` into `backend/.env.test`. It shares the migrations in `backend/supabase/migrations/` through a symlink, so don't add migrations under `backend/test-db/`. After adding a migration, `yarn db:test:reset` applies it to the test stack.
 - **Backend dev server:** `yarn start:dev` in `/backend`, runs on `http://localhost:3001`
 - Frontend calls the backend API at `http://localhost:3001` in development. CORS must be enabled on the backend for `http://localhost:3000`.
 - Environment-specific config (API URL, port, upload size limits, etc.) belongs in `.env` files (`frontend/.env`, `backend/.env`), not hardcoded. Provide `.env.example` files for both packages.
@@ -38,7 +39,7 @@ Before considering any task done, agents should run:
 
 1. **Lint** — oxlint, in whichever package(s) were touched
 2. **Type check** — `tsc --noEmit`
-3. **Tests** — Vitest (backend tests need local Supabase running; they wipe its tables)
+3. **Tests** — Vitest (backend tests need the test Supabase stack running, `yarn db:test:start`; they wipe its tables, never the dev database)
 4. **Manual browser check** — start the dev server and manually verify UI changes actually work in a browser (not just that tests pass)
 
 ## Testing Policy
