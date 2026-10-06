@@ -7,7 +7,8 @@ export default defineConfig({
     globals: true,
     root: './',
     setupFiles: ['./test/load-env.ts'],
-    // Test files share one local database, so run them one at a time.
+    globalSetup: ['./test/global-setup.ts'],
+    // Test files share one local test database, so run them one at a time.
     fileParallelism: false,
     include: ['**/*.e2e-spec.ts'],
   },

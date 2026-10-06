@@ -76,12 +76,12 @@ jobs:
         run: ${{ matrix.package == 'frontend' && 'yarn tsc -b' || 'yarn tsc --noEmit' }}
 
       # Backend tests run against a local Supabase stack (Docker is available
-      # on GitHub-hosted runners); see backend/supabase/.
-      - name: Start local Supabase
+      # on GitHub-hosted runners); see backend/test-db/.
+      - name: Start test Supabase
         if: matrix.package == 'backend'
         run: |
-          yarn db:start -x studio,postgres-meta
-          eval "$(yarn supabase status -o env)"
+          yarn db:test:start
+          eval "$(yarn supabase status --workdir test-db -o env)"
           echo "SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
           echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY" >> "$GITHUB_ENV"
 
