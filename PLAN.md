@@ -325,6 +325,76 @@ Implementation plan for the pandanstreet prototype. See [README.md](README.md) f
 - **Follow-ups after launch** (confirmed with the user): the page title becomes "PandanStreet" (it was Vite's default "frontend"), and any URL that matches no route shows a "Page not found" page with a link to the home page, logged in or not (it used to show an empty page)
 - **Not in this phase:** `www.` redirect, Cloudflare Authenticated Origin Pulls, a staging environment, monitoring/alerting, multiple instances
 
+## Phase 26 — Tile Comments
+
+- **Goal:** let followers reply to a tile, in a small, finite way
+- **Decisions (confirmed with the user):**
+  - Only people who **follow the tile's poster** can comment
+  - Max **5 comments per tile**. Once a tile has 5, comments close: the box is replaced by a short "Comments are full" note
+  - Both **Text and Item** tiles can be commented on
+  - The tile's owner can also comment on their own tile (so they can reply), and their comments **count toward the 5**
+  - A comment is text only, max **140 characters**. Its author can **edit** it after posting, and an edited comment shows an **"(edited)"** label
+  - The comment's author and the tile's owner can delete it (archived, after a confirmation prompt). A deleted comment **frees a slot**, so the cap is 5 _active_ comments
+  - Anyone who can see the tile can read its comments; comments stay if the author later unfollows. Archived tiles can't be commented on
+  - Editing a Text tile keeps its comments
+- **Schema** (new migration): `tile_comments` — id, tile_id, author_id, text, created_at, edited_at (null until the first edit), archived (bool). Text length 1–140. RLS on with no policies. README Data Model updated
+- **Backend** (new `CommentsModule`):
+  - `GET /tiles/:id/comments` — the tile's active comments, oldest first (it reads as a conversation), with author id, username, name, photo, `createdAt` and `editedAt` (null if never edited)
+  - `POST /tiles/:id/comments` `{ text }` — `403` unless the viewer follows the poster or is the poster; `404` for a missing or archived tile; `409` "Comments are full" when the tile already has 5. The count check and insert happen in one Postgres function (`create_tile_comment`) called via `rpc`, so two people can't both take the 5th slot
+  - `PATCH /comments/:id` `{ text }` — updates the text and sets `edited_at`; `403` unless the viewer is its author; `404` if missing or archived; `400` for an empty or over-140-character text
+  - `DELETE /comments/:id` — archives the comment; `403` unless the viewer is its author or the tile's owner
+  - Tile responses (profile tiles, Shout-outs, Bulletin Board) gain a `commentCount` field, so the UI can show the count without loading every comment
+- **Frontend:**
+  - Each tile shows a comment button with its count ("2 comments") on the profile, on Shout-out cards, and in the full-screen Item tile overlay (the 3-column Bulletin Board grid is too small; the overlay covers it)
+  - The button opens a half-screen comments pane (same slide-up as the "+" tile sheet): the comments, then a labelled text box with a live 140-character counter for followers and the owner, a "Comments are full" note at 5, or a note that only followers can comment
+  - An edit button on the viewer's own comments, which turns the comment into a labelled text box (with the 140-character counter) and Save/Cancel buttons, in the pane. Edited comments show a small "(edited)" label next to their age
+  - A delete button on the viewer's own comments and on every comment on their own tiles, with a confirmation prompt
+  - Loading skeleton, "Try again" on error, double-submit guard; the pane is a labelled modal dialog that returns focus to its button on close
+- **Tests:**
+  - Backend: comment as a follower, as the owner, and as a non-follower (`403`); the 6th comment gets `409`; deleting one frees a slot; archived tile `404`; editing by the author (sets `editedAt`), by the tile's owner (`403`) and with an over-long text (`400`); delete permissions; `commentCount` in each tile response
+  - Frontend: the count renders on each surface; the pane lists comments in order; the box is replaced at 5; posting updates the count; editing saves the new text and shows "(edited)", and Cancel keeps the old one; delete asks for confirmation
+- **Manual check** at mobile width: comment from a follower on a Text tile (profile and Shout-outs) and an Item tile (Bulletin Board overlay), fill a tile to 5 and confirm it closes, delete one and confirm it reopens, edit a comment and reload to confirm the change stuck and shows "(edited)"
+- **Docs:** README (a "Comments" section under Tiles; Data Model); remove "comments" from Out of Scope below
+
+## Phase 27 — Private Follow Counts
+
+- **Goal:** make profiles about people, not numbers
+- **Decision (confirmed with the user):** follower and following counts are shown **only to the profile owner**
+- **Backend:** `GET /users/:id` and `GET /users/by-username/:username` return `followerCount` and `followingCount` only when the viewer is the profile owner; for anyone else the fields are left out (enforced on the server, not just hidden in the UI)
+- **Frontend:** `ProfilePage` shows the counts (and their links to the Followers/Following pages) only on the user's own profile. Follow/unfollow on someone else's profile no longer adjusts a count; the button still toggles. The counts become optional in the `UserProfile` type
+- **Tests:**
+  - Backend: counts present for the owner, absent for another logged-in user, on both endpoints
+  - Frontend: counts and their links shown on own profile only; follow/unfollow on another profile still toggles the button
+- **Manual check** at mobile width: two accounts, A follows B; B sees their own counts and can open Followers/Following; A sees no counts on B's profile
+- **Docs:** README (Users section: counts are visible to the profile owner only)
+
+## Phase 28 — Wall Posts
+
+- **Goal:** let followers say something to a profile owner without it costing either of them a tile
+- **Decisions (confirmed with the user):**
+  - Wall posts are written by **visitors who follow the profile owner**, on the owner's profile. The owner doesn't post on their own wall
+  - Wall posts don't count toward the 3-tile limit. The wall shows the **10 most recent** posts; posting an 11th archives the oldest (kept in the table, like tiles)
+- **Defaults to confirm before starting** (not yet confirmed):
+  - A wall post is text only, max **140 characters** (same as a Text tile)
+  - The post's author and the wall's owner can delete it (it's archived, after a confirmation prompt). Wall posts can't be edited
+  - Anyone who can view the profile can read its wall; only followers can write on it. Posts stay if the author later unfollows
+  - Wall posts don't appear in Shout-outs, the Bulletin Board or Plaza
+- **Schema** (new migration): `wall_posts` — id, profile_user_id, author_id, text, created_at, archived (bool). No self-posts (`profile_user_id <> author_id`), text length 1–140. RLS on with no policies. README Data Model updated
+- **Backend** (new `WallModule`, with its own controller, service and DTOs):
+  - `GET /users/:id/wall` — the profile's 10 most recent active posts, newest first, each with the author's id, username, name and photo, plus `createdAt`
+  - `POST /users/:id/wall` `{ text }` — `403` unless the viewer follows the profile; `400` for an empty or over-140-character text or a post on your own wall. Insert and archive-beyond-10 happen in one Postgres function (`create_wall_post`) called via `rpc`, so concurrent posts can't leave 11 active
+  - `DELETE /wall-posts/:id` — archives the post; `403` unless the viewer is its author or the wall's owner; `404` if missing or already archived
+- **Frontend:**
+  - A "Wall" section on the profile page, below the tiles: post cards with the author's avatar and name (`FeedAuthorLink`), the text and its age (`formatTileAge`)
+  - On another user's profile that the viewer follows: a labelled text box with a live 140-character counter and a "Post" button. Not following: a short note that only followers can write on the wall. Own profile: no box
+  - A delete button on posts the viewer wrote, and on every post on their own wall, with a confirmation prompt
+  - Loading skeleton, "Try again" on error, and the double-submit guard, as on other pages
+- **Tests:**
+  - Backend: posting as a follower, a non-follower (`403`) and on your own wall (`400`); length limits; an 11th post archives the oldest and the wall returns 10; delete by author, by wall owner, and by anyone else (`403`)
+  - Frontend: the post box appears only for followers; posting adds the post at the top; counter and limit; delete asks for confirmation and removes the post
+- **Manual check** at mobile width: two accounts, A follows B; A writes on B's wall; B sees it and can delete it; C, who doesn't follow B, sees the wall but no post box
+- **Docs:** README (a new "Wall" section; Data Model)
+
 ## Out of Scope (for this prototype)
 
 - Dark mode
